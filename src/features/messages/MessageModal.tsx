@@ -49,7 +49,7 @@ const CATEGORY_OPTIONS: { value: MessageCategory; label: string }[] = [
 /**
  * Renderiza o texto substituindo tags de menção (@...) por componentes visuais de pills azuis
  */
-function renderContentWithPills(text: string) {
+export function renderContentWithPills(text: string) {
   const parts = text.split(/(@[a-zA-Z0-9_.]+)/g);
   return (
     <span className="whitespace-pre-wrap break-words">
@@ -175,8 +175,8 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     );
   }, [dateSearch]);
 
-  // Estado para alternar entre "Escrever" e "Prévia"
-  const [activeTab, setActiveTab] = React.useState<'edit' | 'preview'>('edit');
+  // Estado para alternar entre "Escrever" e "Prévia" (padrão: prévia)
+  const [activeTab, setActiveTab] = React.useState<'edit' | 'preview'>('preview');
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Inicializa dados quando abre o modal
@@ -201,7 +201,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
       setSelectedDate(null);
     }
     setOpenSelector(null);
-    setActiveTab('edit');
+    setActiveTab('preview');
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -716,8 +716,9 @@ export const MessageModal: React.FC<MessageModalProps> = ({
               </div>
             </div>
 
-            {/* Bloco de Pills */}
-            <div className="p-3 rounded-xl bg-muted/20 border border-border/40 space-y-2.5">
+            {/* Bloco de Pills (exibido apenas no modo de edição/escrita) */}
+            {activeTab === 'edit' && (
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/40 space-y-2.5">
               {/* Pills do Tipo 1: Relacionadas ao Cliente (sempre presentes) */}
               <div>
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
@@ -869,6 +870,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 </div>
               )}
             </div>
+            )}
 
             {/* Campo Textarea (Escrever) ou Container de Prévia (Prévia) */}
             {activeTab === 'edit' ? (

@@ -16,6 +16,8 @@ import { MessageModal } from './MessageModal';
 import { ClientRecipientsModal } from './ClientRecipientsModal';
 import { SendConfirmationModal } from './SendConfirmationModal';
 import { ScheduleDispatchModal } from './ScheduleDispatchModal';
+import { MessagePreviewModal } from './MessagePreviewModal';
+import { UseTemplateModal } from './UseTemplateModal';
 import { initialMessages, initialTemplates } from './mock-data';
 import { MessageItem, TemplateItem, MessageTabId, ClientRecipient, ScheduleConfig } from './types';
 
@@ -42,6 +44,12 @@ export const MessagesContainer: React.FC = () => {
 
   // Estados do Modal de Agendamento de Envio (Data e Hora)
   const [scheduleModalItem, setScheduleModalItem] = React.useState<MessageItem | TemplateItem | null>(null);
+
+  // Estados do Modal de Prévia de Mensagem (ao clicar na mensagem)
+  const [previewMessage, setPreviewMessage] = React.useState<MessageItem | null>(null);
+
+  // Estados do Modal de Usar Modelo (Wizard de 4 etapas)
+  const [useTemplateItem, setUseTemplateItem] = React.useState<TemplateItem | null>(null);
 
   // Mapeamento dinâmico de urgência (bolinha vermelha na barra de abas)
   const hasUrgentMessages = React.useMemo(() => {
@@ -187,6 +195,34 @@ export const MessagesContainer: React.FC = () => {
     }
   };
 
+  // Ações de Usar Modelo (Wizard de 4 etapas)
+  const handleOpenUseTemplate = (template: TemplateItem) => {
+    setUseTemplateItem(template);
+  };
+
+  const handleConfirmUseTemplate = (data: Partial<MessageItem> | Partial<MessageItem>[]) => {
+    const items = Array.isArray(data) ? data : [data];
+    const baseTime = Date.now();
+
+    const newMessages: MessageItem[] = items.map((item, idx) => ({
+      id: `msg-${baseTime}-${idx}`,
+      title: item.title || 'Nova Mensagem',
+      content: item.content || '',
+      category: item.category || 'general',
+      clients: item.clients || [],
+      scheduleConfig: item.scheduleConfig,
+      scheduledAt: item.scheduledAt || null,
+      selectedLawsuit: item.selectedLawsuit || null,
+      selectedFinancial: item.selectedFinancial || null,
+      selectedDate: item.selectedDate || null,
+      hasAlert: false,
+      createdAt: new Date().toISOString(),
+    }));
+
+    setMessages((prev) => [...newMessages, ...prev]);
+    setActiveTab('messages');
+  };
+
   // Salvar criação ou edição
   const handleSaveModal = (data: Partial<MessageItem | TemplateItem>) => {
     if (activeTab === 'messages') {
@@ -328,7 +364,7 @@ export const MessagesContainer: React.FC = () => {
               </div>
 
               <div className="text-[11px] text-muted-foreground hidden sm:block">
-                <span>Clique no ícone de <strong>User</strong> para gerenciar destinatários ou <strong>Envio</strong> para disparar.</span>
+                <span>Clique em uma mensagem para visualizar a prévia ou no botão de envio para disparar.</span>
               </div>
             </div>
 
@@ -344,9 +380,10 @@ export const MessagesContainer: React.FC = () => {
                     key={message.id}
                     item={message}
                     isMessage={true}
-                    onSelect={handleOpenEdit}
-                    onOpenClients={handleOpenClientsModal}
+                    onSelect={(item) => setPreviewMessage(item as MessageItem)}
+                    onEdit={handleOpenEdit}
                     onSend={handleOpenSendModal}
+                    onOpenClients={handleOpenClientsModal}
                     onSchedule={handleOpenScheduleModal}
                   />
                 ))
@@ -399,6 +436,10 @@ export const MessagesContainer: React.FC = () => {
                   className="w-full rounded-xl border border-border/60 bg-background/80 py-2 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </div>
+
+              <div className="text-[11px] text-muted-foreground hidden sm:block">
+                <span>Clique em <strong>Usar Modelo</strong> para gerar uma mensagem com destinatários e agendamento.</span>
+              </div>
             </div>
 
             {/* Grid / Lista de Modelos */}
@@ -414,6 +455,8 @@ export const MessagesContainer: React.FC = () => {
                     item={template}
                     isMessage={false}
                     onSelect={handleOpenEdit}
+                    onEdit={handleOpenEdit}
+                    onUseTemplate={handleOpenUseTemplate}
                     onOpenClients={handleOpenClientsModal}
                     onSchedule={handleOpenScheduleModal}
                   />
@@ -432,6 +475,23 @@ export const MessagesContainer: React.FC = () => {
         initialData={selectedItem}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveModal}
+      />
+
+      {/* Modal de Prévia ao clicar na mensagem */}
+      <MessagePreviewModal
+        isOpen={Boolean(previewMessage)}
+        message={previewMessage}
+        onClose={() => setPreviewMessage(null)}
+        onEdit={(msg) => handleOpenEdit(msg)}
+        onSend={(msg) => handleOpenSendModal(msg)}
+      />
+
+      {/* Modal de Usar Modelo (Wizard 4 etapas) */}
+      <UseTemplateModal
+        isOpen={Boolean(useTemplateItem)}
+        template={useTemplateItem}
+        onClose={() => setUseTemplateItem(null)}
+        onConfirm={handleConfirmUseTemplate}
       />
 
       {/* Modal / Carrossel de Destinatários de Clientes */}

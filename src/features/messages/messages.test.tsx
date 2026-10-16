@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { FloatingTabNav } from './FloatingTabNav';
 import { MessageListItem } from './MessageListItem';
 import { MessageModal } from './MessageModal';
+import { MessagePreviewModal } from './MessagePreviewModal';
+import { UseTemplateModal } from './UseTemplateModal';
 import { ClientRecipientsModal } from './ClientRecipientsModal';
 import { SendConfirmationModal } from './SendConfirmationModal';
 import { ScheduleDispatchModal } from './ScheduleDispatchModal';
@@ -39,7 +41,7 @@ describe('FloatingTabNav', () => {
   });
 });
 
-describe('MessageListItem (Grid com Ícone de User e Envio)', () => {
+describe('MessageListItem (Envio e Edição em Mensagens, Usar Modelo em Modelos)', () => {
   const sampleMessage: MessageItem = {
     id: 'msg-test-1',
     title: 'Aviso de Audiência Urgente',
@@ -65,37 +67,24 @@ describe('MessageListItem (Grid com Ícone de User e Envio)', () => {
     expect(screen.getByTestId('message-item-title')).toHaveTextContent('Aviso de Audiência Urgente');
   });
 
-  it('deve exibir à direita o ícone de User com a contagem de clientes e o ícone de Envio', () => {
+  it('deve exibir apenas botão de envio e edição em mensagens (sem user ou calendar)', () => {
     render(<MessageListItem item={sampleMessage} isMessage={true} onSelect={() => {}} />);
 
-    const userBtn = screen.getByTestId('open-clients-btn');
-    const sendBtn = screen.getByTestId('open-send-btn');
-
-    expect(userBtn).toBeInTheDocument();
-    expect(userBtn).toHaveTextContent('2'); // 2 clientes vinculados
-    expect(sendBtn).toBeInTheDocument();
+    expect(screen.getByTestId('open-send-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('open-edit-btn')).toBeInTheDocument();
+    expect(screen.queryByTestId('open-clients-btn')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('open-schedule-btn')).not.toBeInTheDocument();
   });
 
-  it('não deve exibir botão de envio em modelos', () => {
+  it('deve exibir botão de "Usar Modelo" e edição em modelos (sem envio, user ou calendar)', () => {
     render(<MessageListItem item={sampleTemplate} isMessage={false} onSelect={() => {}} />);
 
+    expect(screen.getByTestId('use-template-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('open-edit-btn')).toBeInTheDocument();
     expect(screen.queryByTestId('open-send-btn')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('open-clients-btn')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('open-schedule-btn')).not.toBeInTheDocument();
     expect(screen.queryByTestId('message-alert-dot')).not.toBeInTheDocument();
-  });
-
-  it('deve disparar onOpenClients ao clicar no ícone de User', () => {
-    const handleOpenClients = vi.fn();
-    render(
-      <MessageListItem
-        item={sampleMessage}
-        isMessage={true}
-        onSelect={() => {}}
-        onOpenClients={handleOpenClients}
-      />
-    );
-
-    fireEvent.click(screen.getByTestId('open-clients-btn'));
-    expect(handleOpenClients).toHaveBeenCalledWith(sampleMessage);
   });
 
   it('deve disparar onSend ao clicar no ícone de Envio', () => {
@@ -113,22 +102,34 @@ describe('MessageListItem (Grid com Ícone de User e Envio)', () => {
     expect(handleSend).toHaveBeenCalledWith(sampleMessage);
   });
 
-  it('deve exibir o ícone de Calendar e disparar onSchedule ao clicar nele', () => {
-    const handleSchedule = vi.fn();
+  it('deve disparar onEdit ao clicar no botão de Edição', () => {
+    const handleEdit = vi.fn();
     render(
       <MessageListItem
         item={sampleMessage}
         isMessage={true}
         onSelect={() => {}}
-        onSchedule={handleSchedule}
+        onEdit={handleEdit}
       />
     );
 
-    const calBtn = screen.getByTestId('open-schedule-btn');
-    expect(calBtn).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('open-edit-btn'));
+    expect(handleEdit).toHaveBeenCalledWith(sampleMessage);
+  });
 
-    fireEvent.click(calBtn);
-    expect(handleSchedule).toHaveBeenCalledWith(sampleMessage);
+  it('deve disparar onUseTemplate ao clicar em Usar Modelo', () => {
+    const handleUseTemplate = vi.fn();
+    render(
+      <MessageListItem
+        item={sampleTemplate}
+        isMessage={false}
+        onSelect={() => {}}
+        onUseTemplate={handleUseTemplate}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('use-template-btn'));
+    expect(handleUseTemplate).toHaveBeenCalledWith(sampleTemplate);
   });
 });
 
@@ -362,7 +363,7 @@ describe('SendConfirmationModal (Confirmação de Envio)', () => {
 });
 
 describe('MessageModal & Sistema de Pills Dinâmicas', () => {
-  it('deve sempre disponibilizar as pills do cliente', () => {
+  it('deve abrir no modo de preview por padrão, sem exibir o bloco de adição de pills', () => {
     render(
       <MessageModal
         isOpen={true}
@@ -373,12 +374,38 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
       />
     );
 
-    expect(screen.getByTestId('pill-cliente-nome')).toBeInTheDocument();
-    expect(screen.getByTestId('pill-cliente-nome-completo')).toBeInTheDocument();
-    expect(screen.getByTestId('pill-cliente-aniversario')).toBeInTheDocument();
+    // Em modo de preview por padrão, a prévia está visível
+    expect(screen.getByTestId('message-preview-container')).toBeInTheDocument();
+    // E os botões de inserção de pills NÃO devem estar visíveis
+    expect(screen.queryByTestId('pill-cliente-nome')).not.toBeInTheDocument();
   });
 
-  it('deve exibir ícones de referência em cinza quando não selecionados, e ocultar suas pills', () => {
+  it('ao alternar para a aba "Escrever", deve exibir o bloco de pills e permitir inserção no textarea', () => {
+    render(
+      <MessageModal
+        isOpen={true}
+        mode="create"
+        type="message"
+        onClose={() => {}}
+        onSave={() => {}}
+      />
+    );
+
+    // Clica para alternar para a aba "Escrever"
+    fireEvent.click(screen.getByTestId('tab-write-btn'));
+
+    // Agora o bloco de pills deve estar presente
+    const clientNamePill = screen.getByTestId('pill-cliente-nome');
+    expect(clientNamePill).toBeInTheDocument();
+    expect(clientNamePill).toHaveClass('text-blue-700');
+
+    // Inserção no textarea
+    const textarea = screen.getByLabelText(/corpo do texto/i) as HTMLTextAreaElement;
+    fireEvent.click(clientNamePill);
+    expect(textarea.value).toContain('@cliente.nome');
+  });
+
+  it('deve exibir ícones de referência em cinza quando não selecionados, e ocultar suas pills no modo Escrever', () => {
     render(
       <MessageModal
         isOpen={true}
@@ -393,6 +420,8 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
     const lawsuitBtn = screen.getByTestId('ref-btn-lawsuit');
     expect(lawsuitBtn).toHaveClass('text-muted-foreground/50');
 
+    // Alterna para Escrever
+    fireEvent.click(screen.getByTestId('tab-write-btn'));
     // Pills de processo não devem existir antes da seleção
     expect(screen.queryByTestId('pill-processo-numero')).not.toBeInTheDocument();
   });
@@ -423,13 +452,16 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
     const lawsuitBtn = screen.getByTestId('ref-btn-lawsuit');
     expect(lawsuitBtn).toHaveClass('text-blue-600');
 
+    // Alterna para Escrever
+    fireEvent.click(screen.getByTestId('tab-write-btn'));
+
     // As pills do processo agora aparecem
     expect(screen.getByTestId('pill-processo-numero')).toBeInTheDocument();
     expect(screen.getByTestId('pill-processo-vara')).toBeInTheDocument();
     expect(screen.getByTestId('pill-processo-comarca')).toBeInTheDocument();
   });
 
-  it('deve inserir a tag no texto da mensagem ao clicar na pill', () => {
+  it('deve permitir alternar entre Escrever e Prévia e visualizar as pills azuis formatadas', () => {
     render(
       <MessageModal
         isOpen={true}
@@ -440,71 +472,22 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
       />
     );
 
-    const textarea = screen.getByLabelText(/corpo do texto/i) as HTMLTextAreaElement;
-    const clientNamePill = screen.getByTestId('pill-cliente-nome');
-
-    fireEvent.click(clientNamePill);
-    expect(textarea.value).toContain('@cliente.nome');
-  });
-
-  it('deve renderizar o componente da pill como chip azul dentro da caixa de texto do editor', () => {
-    render(
-      <MessageModal
-        isOpen={true}
-        mode="create"
-        type="message"
-        onClose={() => {}}
-        onSave={() => {}}
-      />
-    );
-
-    const clientNamePill = screen.getByTestId('pill-cliente-nome');
-    // Verifica que o botão da pill está estilizado em azul
-    expect(clientNamePill).toHaveClass('text-blue-700');
-
-    // Clica para inserir na caixa de texto
-    fireEvent.click(clientNamePill);
-
-    const textarea = screen.getByLabelText(/corpo do texto/i) as HTMLTextAreaElement;
-    expect(textarea.value).toContain('@cliente.nome');
-  });
-
-  it('deve permitir alternar para a aba de Prévia e visualizar as pills azuis formatadas', () => {
-    render(
-      <MessageModal
-        isOpen={true}
-        mode="create"
-        type="message"
-        onClose={() => {}}
-        onSave={() => {}}
-      />
-    );
-
+    // Vai para Escrever
+    fireEvent.click(screen.getByTestId('tab-write-btn'));
     const clientNamePill = screen.getByTestId('pill-cliente-nome');
     fireEvent.click(clientNamePill);
 
-    // Clica no botão de Prévia
+    // Volta para Prévia
     const previewTabBtn = screen.getByTestId('tab-preview-btn');
     fireEvent.click(previewTabBtn);
 
-    // O container de prévia deve estar visível
     const previewContainer = screen.getByTestId('message-preview-container');
     expect(previewContainer).toBeInTheDocument();
 
-    // A pill formatada em azul deve estar renderizada dentro da prévia
     const previewPill = screen.getByTestId('preview-pill-cliente-nome');
     expect(previewPill).toBeInTheDocument();
     expect(previewPill).toHaveTextContent('@cliente.nome');
     expect(previewPill).toHaveClass('text-blue-700');
-
-    // Volta para a aba "Escrever"
-    const writeTabBtn = screen.getByTestId('tab-write-btn');
-    fireEvent.click(writeTabBtn);
-
-    // Textarea deve voltar e conter o texto original
-    const textarea = screen.getByLabelText(/corpo do texto/i) as HTMLTextAreaElement;
-    expect(textarea).toBeInTheDocument();
-    expect(textarea.value).toContain('@cliente.nome');
   });
 
   it('deve permitir pesquisar opções no seletor de objetos de referência', () => {
@@ -526,7 +509,6 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
     expect(lawsuitPopover).toBeInTheDocument();
 
     const searchInput = screen.getByTestId('search-lawsuit-input');
-    // Pesquisa por número específico
     fireEvent.change(searchInput, { target: { value: '5004321' } });
 
     expect(screen.getByText(/5004321-12.2025.8.26.0100/i)).toBeInTheDocument();
@@ -563,6 +545,175 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
   });
 });
 
+describe('MessagePreviewModal (Visualização da Mensagem com Botão Editar)', () => {
+  const sampleMessage: MessageItem = {
+    id: 'msg-prev-1',
+    title: 'Notificação de Despacho',
+    content: 'Prezado(a) @cliente.nome, informamos despacho no processo.',
+    category: 'update',
+    clients: [allOfficeClients[0]],
+    createdAt: '2026-10-16',
+    hasAlert: true,
+  };
+
+  it('deve renderizar a prévia da mensagem com título, conteúdo formatado e contagem de clientes', () => {
+    render(
+      <MessagePreviewModal
+        isOpen={true}
+        message={sampleMessage}
+        onClose={() => {}}
+        onEdit={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('preview-modal-title')).toHaveTextContent('Notificação de Despacho');
+    expect(screen.getByTestId('message-preview-content')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-pill-cliente-nome')).toBeInTheDocument();
+    expect(screen.getByText(/1 destinatário/i)).toBeInTheDocument();
+    expect(screen.getByTestId('preview-alert-indicator')).toBeInTheDocument();
+  });
+
+  it('deve disparar onEdit ao clicar no botão de Editar', () => {
+    const handleEdit = vi.fn();
+    render(
+      <MessagePreviewModal
+        isOpen={true}
+        message={sampleMessage}
+        onClose={() => {}}
+        onEdit={handleEdit}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('preview-edit-btn'));
+    expect(handleEdit).toHaveBeenCalledWith(sampleMessage);
+  });
+});
+
+describe('UseTemplateModal (Fluxo em 4 Etapas: Destinatários, Agendamento, Referências e Prévia)', () => {
+  const sampleTemplate: TemplateItem = {
+    id: 'tmpl-flow-1',
+    title: 'Aviso de Audiência Modelo',
+    content: 'Olá @cliente.nome, sua audiência no processo @processo.numero foi marcada.',
+    category: 'hearing',
+    clients: [allOfficeClients[0]],
+  };
+
+  it('deve navegar pelas 4 etapas do wizard e permitir confirmação', () => {
+    const handleConfirm = vi.fn();
+    const handleClose = vi.fn();
+
+    render(
+      <UseTemplateModal
+        isOpen={true}
+        template={sampleTemplate}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+      />
+    );
+
+    // Etapa 1: Destinatários
+    expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
+    expect(screen.getByText(/selecione os destinatários/i)).toBeInTheDocument();
+
+    // Avança para Etapa 2
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 2: Agendamento
+    expect(screen.getByTestId('wizard-step-scheduling')).toBeInTheDocument();
+    expect(screen.getByTestId('sched-scope-all-btn')).toBeInTheDocument();
+
+    // Avança para Etapa 3
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 3: Referências
+    expect(screen.getByTestId('wizard-step-references')).toBeInTheDocument();
+    expect(screen.getByText(/referenciar objetos da mensagem/i)).toBeInTheDocument();
+
+    // Avança para Etapa 4
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 4: Título, Prévia e Confirmação
+    expect(screen.getByTestId('wizard-step-preview')).toBeInTheDocument();
+    const titleInput = screen.getByTestId('use-template-title-input') as HTMLInputElement;
+    expect(titleInput).toBeInTheDocument();
+    expect(titleInput.value).toBe(sampleTemplate.title);
+    expect(screen.getByTestId('use-template-preview-text')).toBeInTheDocument();
+
+    // Edita o título da mensagem
+    fireEvent.change(titleInput, { target: { value: 'Título Personalizado da Mensagem' } });
+
+    // Clica no botão de confirmação
+    const confirmBtn = screen.getByTestId('confirm-use-template-btn');
+    expect(confirmBtn).toBeInTheDocument();
+    fireEvent.click(confirmBtn);
+
+    expect(handleConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Título Personalizado da Mensagem',
+        content: sampleTemplate.content,
+      })
+    );
+  });
+
+  it('deve criar uma mensagem diferente para cada cliente quando o agendamento for individual', () => {
+    const handleConfirm = vi.fn();
+    const multiClientTemplate: TemplateItem = {
+      ...sampleTemplate,
+      clients: [allOfficeClients[0], allOfficeClients[1]],
+    };
+
+    render(
+      <UseTemplateModal
+        isOpen={true}
+        template={multiClientTemplate}
+        onClose={() => {}}
+        onConfirm={handleConfirm}
+      />
+    );
+
+    // Etapa 1 -> Etapa 2 (Agendamento)
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Seleciona modo "Individual por Cliente"
+    fireEvent.click(screen.getByTestId('sched-scope-indiv-btn'));
+
+    // Etapa 2 -> Etapa 3 (Referências) -> Etapa 4 (Título e Prévia)
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Confirma criação
+    fireEvent.click(screen.getByTestId('confirm-use-template-btn'));
+
+    expect(handleConfirm).toHaveBeenCalledTimes(1);
+    const createdPayload = handleConfirm.mock.calls[0][0];
+    expect(Array.isArray(createdPayload)).toBe(true);
+    expect(createdPayload).toHaveLength(2);
+    expect(createdPayload[0].clients).toEqual([allOfficeClients[0]]);
+    expect(createdPayload[0].title).toBe('Aviso de Audiência Modelo - Roberto A. D. Silva');
+    expect(createdPayload[1].clients).toEqual([allOfficeClients[1]]);
+    expect(createdPayload[1].title).toBe('Aviso de Audiência Modelo - Mariana D. Prado');
+  });
+
+  it('deve permitir voltar entre etapas usando o botão Voltar', () => {
+    render(
+      <UseTemplateModal
+        isOpen={true}
+        template={sampleTemplate}
+        onClose={() => {}}
+        onConfirm={() => {}}
+      />
+    );
+
+    // Avança para Etapa 2
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    expect(screen.getByTestId('wizard-step-scheduling')).toBeInTheDocument();
+
+    // Clica em Voltar
+    fireEvent.click(screen.getByTestId('wizard-back-btn'));
+    expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
+  });
+});
+
 describe('MessagesContainer (Integração Completa)', () => {
   it('deve renderizar a tela de mensagens com o grid atualizado', () => {
     render(<MessagesContainer />);
@@ -571,13 +722,28 @@ describe('MessagesContainer (Integração Completa)', () => {
     expect(screen.getAllByTestId('message-list-item').length).toBeGreaterThan(0);
   });
 
-  it('deve abrir o modal de clientes ao clicar no ícone de User da primeira mensagem', () => {
+  it('deve abrir o modal de prévia ao clicar no card da mensagem', () => {
     render(<MessagesContainer />);
 
-    const userBtns = screen.getAllByTestId('open-clients-btn');
-    fireEvent.click(userBtns[0]);
+    const messageCards = screen.getAllByTestId('message-list-item');
+    fireEvent.click(messageCards[0]);
 
-    expect(screen.getByText(/destinatários da mensagem/i)).toBeInTheDocument();
+    expect(screen.getByTestId('message-preview-modal')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-edit-btn')).toBeInTheDocument();
+  });
+
+  it('deve abrir o modal de edição ao clicar no botão "Editar" dentro do modal de prévia', () => {
+    render(<MessagesContainer />);
+
+    // Clica na mensagem para abrir a prévia
+    const messageCards = screen.getAllByTestId('message-list-item');
+    fireEvent.click(messageCards[0]);
+
+    // Clica em Editar dentro da prévia
+    fireEvent.click(screen.getByTestId('preview-edit-btn'));
+
+    // Modal de edição (MessageModal) deve estar aberto
+    expect(screen.getByRole('heading', { name: /editar mensagem/i })).toBeInTheDocument();
   });
 
   it('deve abrir o modal de confirmação de envio ao clicar no ícone de Envio', () => {
@@ -587,5 +753,20 @@ describe('MessagesContainer (Integração Completa)', () => {
     fireEvent.click(sendBtns[0]);
 
     expect(screen.getByText(/confirmar disparo/i)).toBeInTheDocument();
+  });
+
+  it('deve abrir o modal de "Usar Modelo" ao clicar no botão correspondente na aba de modelos', () => {
+    render(<MessagesContainer />);
+
+    // Alterna para a aba de modelos
+    const templatesTab = screen.getByRole('tab', { name: /modelos/i });
+    fireEvent.click(templatesTab);
+
+    // Localiza e clica no botão "Usar Modelo"
+    const useTemplateBtns = screen.getAllByTestId('use-template-btn');
+    fireEvent.click(useTemplateBtns[0]);
+
+    expect(screen.getByTestId('use-template-modal')).toBeInTheDocument();
+    expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
   });
 });
