@@ -294,7 +294,6 @@ export const FinancialContainer: React.FC = () => {
         <FinancialTable
           invoices={paginatedInvoices}
           selectedIds={selectedIds}
-          pageSize={pageSize}
           onToggleSelect={handleToggleSelect}
           onSelectAll={handleSelectAll}
           onToggleStatus={handleToggleStatus}

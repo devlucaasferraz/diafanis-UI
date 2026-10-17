@@ -53,7 +53,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ summary }) =
           </div>
         </div>
 
-        {/* Segmented Flow Bar */}
         <div className="space-y-3">
           <div
             className="h-3 w-full rounded-full bg-muted/80 overflow-hidden flex shadow-inner border border-border/30"
@@ -86,7 +85,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ summary }) =
             )}
           </div>
 
-          {/* Breakdown legend pills */}
           <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs pt-1">
             <div className="flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0" />

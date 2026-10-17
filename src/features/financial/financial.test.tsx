@@ -28,7 +28,6 @@ describe('Financial Utils & Calculations (RF13)', () => {
 
   it('deve formatar valores monetários no padrão Real Brasileiro (BRL)', () => {
     const formatted = formatCurrency(12500.5);
-    // Deve conter R$ e 12.500,50
     expect(formatted).toContain('12.500,50');
     expect(formatted).toContain('R$');
   });
@@ -309,12 +308,11 @@ describe('FinancialTable Component (RF12 - Listagem de Honorários)', () => {
     expect(screen.getByText('Nenhuma cobrança encontrada')).toBeInTheDocument();
   });
 
-  it('deve renderizar slots vazios mantendo a altura fixa para evitar salto visual (layout shift)', () => {
+  it('deve manter o container com altura padronizada evitando layout shift', () => {
     const { container } = render(
       <FinancialTable
         invoices={sampleInvoices} // 3 itens
         selectedIds={[]}
-        pageSize={10}
         onToggleSelect={vi.fn()}
         onSelectAll={vi.fn()}
         onToggleStatus={vi.fn()}
@@ -323,9 +321,9 @@ describe('FinancialTable Component (RF12 - Listagem de Honorários)', () => {
       />
     );
 
-    // Deve conter 3 linhas de dados + 7 linhas de placeholder (aria-hidden="true")
-    const emptyRows = container.querySelectorAll('tbody tr[aria-hidden="true"]');
-    expect(emptyRows.length).toBe(7);
+    const tableWrapper = container.querySelector('.overflow-x-auto');
+    expect(tableWrapper).toHaveClass('h-[565px]');
+    expect(tableWrapper).toHaveClass('min-h-[565px]');
   });
 });
 
@@ -601,22 +599,16 @@ describe('FinancialContainer (Integração Completa da Tela de Gestão Financeir
   });
 
   it('deve paginar a lista com tamanho fixo de 10 itens por página e navegar entre páginas sem perder estabilidade', () => {
-    const { container } = render(<FinancialContainer />);
+    render(<FinancialContainer />);
 
-    // Total de 12 itens: página 1 exibe 10 itens (e 0 slots vazios)
+    // Total de 12 itens: página 1 exibe 10 itens
     expect(screen.getByText(/mostrando 1–10 de 12 cobranças/i)).toBeInTheDocument();
-
-    const emptyRowsP1 = container.querySelectorAll('tbody tr[aria-hidden="true"]');
-    expect(emptyRowsP1.length).toBe(0);
 
     // Navega para a página 2
     const p2Btn = screen.getByRole('button', { name: '2' });
     fireEvent.click(p2Btn);
 
-    // Página 2 exibe 2 itens + 8 slots vazios para manter a altura total fixa de 10 linhas
+    // Página 2 exibe as 2 cobranças restantes
     expect(screen.getByText(/mostrando 11–12 de 12 cobranças/i)).toBeInTheDocument();
-
-    const emptyRowsP2 = container.querySelectorAll('tbody tr[aria-hidden="true"]');
-    expect(emptyRowsP2.length).toBe(8);
   });
 });

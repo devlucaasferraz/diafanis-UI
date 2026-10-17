@@ -25,7 +25,6 @@ import { cn } from '@/shared/cn';
 interface FinancialTableProps {
   invoices: Invoice[];
   selectedIds: string[];
-  pageSize?: number;
   onToggleSelect: (id: string) => void;
   onSelectAll: (checked: boolean) => void;
   onToggleStatus: (id: string) => void;
@@ -36,7 +35,6 @@ interface FinancialTableProps {
 export const FinancialTable: React.FC<FinancialTableProps> = ({
   invoices,
   selectedIds,
-  pageSize = 10,
   onToggleSelect,
   onSelectAll,
   onToggleStatus,
@@ -47,8 +45,6 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
     invoices.length > 0 && invoices.every((inv) => selectedIds.includes(inv.id));
   const someSelected =
     invoices.some((inv) => selectedIds.includes(inv.id)) && !allSelected;
-
-  const emptySlots = invoices.length > 0 ? Math.max(0, pageSize - invoices.length) : 0;
 
   if (invoices.length === 0) {
     return (
@@ -243,26 +239,6 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
               </tr>
             );
           })}
-
-          {/* Placeholder rows to keep table height fixed and prevent layout jumping */}
-          {Array.from({ length: emptySlots }).map((_, idx) => (
-            <tr
-              key={`empty-slot-${idx}`}
-              className="h-[52px] select-none pointer-events-none !border-transparent"
-              aria-hidden="true"
-            >
-              <td className="py-2.5 pl-2 pr-1">&nbsp;</td>
-              <td className="py-2.5 px-2">&nbsp;</td>
-              <td className="py-2.5 px-2">&nbsp;</td>
-              <td className="py-2.5 px-2">&nbsp;</td>
-              <td className="py-2.5 px-2">&nbsp;</td>
-              <td className="py-2.5 px-2">&nbsp;</td>
-              <td className="py-2.5 px-2">&nbsp;</td>
-              <td className="w-[125px] py-2.5 px-2">&nbsp;</td>
-              <td className="py-2.5 px-2">&nbsp;</td>
-              <td className="w-8 py-2.5 pr-2">&nbsp;</td>
-            </tr>
-          ))}
         </tbody>
       </table>
     </div>
