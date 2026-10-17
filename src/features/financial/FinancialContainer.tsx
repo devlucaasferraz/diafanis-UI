@@ -29,7 +29,7 @@ export const FinancialContainer: React.FC = () => {
   const [isNewModalOpen, setIsNewModalOpen] = React.useState(false);
   const [selectedInvoiceForDetails, setSelectedInvoiceForDetails] = React.useState<Invoice | null>(null);
 
-  const pageSize = 6;
+  const pageSize = 10;
 
   // Filter and sort invoices
   const filteredInvoices = React.useMemo(() => {
@@ -294,6 +294,7 @@ export const FinancialContainer: React.FC = () => {
         <FinancialTable
           invoices={paginatedInvoices}
           selectedIds={selectedIds}
+          pageSize={pageSize}
           onToggleSelect={handleToggleSelect}
           onSelectAll={handleSelectAll}
           onToggleStatus={handleToggleStatus}

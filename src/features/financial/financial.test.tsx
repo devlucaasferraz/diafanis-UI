@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FinancialSummary } from './FinancialSummary';
 import { FinancialStatusBadge, FeeTypeBadge } from './FinancialBadge';
+import { DocumentReceiptBadge, isImageDocument, truncateFileName } from './DocumentReceiptBadge';
 import { FinancialFilters } from './FinancialFilters';
 import { FinancialTable } from './FinancialTable';
 import { FinancialPagination } from './FinancialPagination';
@@ -91,6 +92,38 @@ describe('FinancialBadge Components', () => {
 
     rerender(<FeeTypeBadge feeType="succumbential" />);
     expect(screen.getByText('Sucumbencial')).toBeInTheDocument();
+  });
+
+  it('deve identificar corretamente extensões de imagem e outros documentos', () => {
+    expect(isImageDocument('recibo.png')).toBe(true);
+    expect(isImageDocument('comprovante.jpeg')).toBe(true);
+    expect(isImageDocument('foto.jpg')).toBe(true);
+    expect(isImageDocument('recibo.webp')).toBe(true);
+    expect(isImageDocument('documento.pdf')).toBe(false);
+    expect(isImageDocument('')).toBe(false);
+  });
+
+  it('deve renderizar a badge de comprovante PDF e disparar onClick ao clicar', () => {
+    const onClick = vi.fn();
+    render(<DocumentReceiptBadge documentName="REC-1001.pdf" onClick={onClick} />);
+    const badge = screen.getByText('REC-1001.pdf');
+    expect(badge).toBeInTheDocument();
+    fireEvent.click(badge);
+    expect(onClick).toHaveBeenCalled();
+  });
+
+  it('deve truncar nomes de arquivos longos preservando a extensão para não ocupar a coluna', () => {
+    expect(truncateFileName('REC-1001.pdf', 14)).toBe('REC-1001.pdf');
+    expect(truncateFileName('comprovante-transferencia-bancaria.pdf', 14)).toBe('comprova...pdf');
+    expect(truncateFileName('recibo_pix_pagamento_empresa.jpeg', 14)).toBe('recibo_...jpeg');
+  });
+
+  it('deve renderizar o nome truncado mantendo o nome completo no title e aria-label', () => {
+    render(<DocumentReceiptBadge documentName="comprovante-transferencia-bancaria.pdf" />);
+    expect(screen.getByText('comprova...pdf')).toBeInTheDocument();
+    expect(
+      screen.getByTitle('Documento PDF: comprovante-transferencia-bancaria.pdf')
+    ).toBeInTheDocument();
   });
 });
 
@@ -274,6 +307,25 @@ describe('FinancialTable Component (RF12 - Listagem de Honorários)', () => {
     );
 
     expect(screen.getByText('Nenhuma cobrança encontrada')).toBeInTheDocument();
+  });
+
+  it('deve renderizar slots vazios mantendo a altura fixa para evitar salto visual (layout shift)', () => {
+    const { container } = render(
+      <FinancialTable
+        invoices={sampleInvoices} // 3 itens
+        selectedIds={[]}
+        pageSize={10}
+        onToggleSelect={vi.fn()}
+        onSelectAll={vi.fn()}
+        onToggleStatus={vi.fn()}
+        onDeleteInvoice={vi.fn()}
+        onViewInvoiceDetails={vi.fn()}
+      />
+    );
+
+    // Deve conter 3 linhas de dados + 7 linhas de placeholder (aria-hidden="true")
+    const emptyRows = container.querySelectorAll('tbody tr[aria-hidden="true"]');
+    expect(emptyRows.length).toBe(7);
   });
 });
 
@@ -546,5 +598,25 @@ describe('FinancialContainer (Integração Completa da Tela de Gestão Financeir
 
     // Banner desaparece após ação
     expect(screen.queryByText(/cobranças selecionadas/i)).not.toBeInTheDocument();
+  });
+
+  it('deve paginar a lista com tamanho fixo de 10 itens por página e navegar entre páginas sem perder estabilidade', () => {
+    const { container } = render(<FinancialContainer />);
+
+    // Total de 12 itens: página 1 exibe 10 itens (e 0 slots vazios)
+    expect(screen.getByText(/mostrando 1–10 de 12 cobranças/i)).toBeInTheDocument();
+
+    const emptyRowsP1 = container.querySelectorAll('tbody tr[aria-hidden="true"]');
+    expect(emptyRowsP1.length).toBe(0);
+
+    // Navega para a página 2
+    const p2Btn = screen.getByRole('button', { name: '2' });
+    fireEvent.click(p2Btn);
+
+    // Página 2 exibe 2 itens + 8 slots vazios para manter a altura total fixa de 10 linhas
+    expect(screen.getByText(/mostrando 11–12 de 12 cobranças/i)).toBeInTheDocument();
+
+    const emptyRowsP2 = container.querySelectorAll('tbody tr[aria-hidden="true"]');
+    expect(emptyRowsP2.length).toBe(8);
   });
 });

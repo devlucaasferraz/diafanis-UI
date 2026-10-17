@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Invoice } from './types';
 import { FinancialStatusBadge } from './FinancialBadge';
+import { DocumentReceiptBadge } from './DocumentReceiptBadge';
 import { formatCurrency, formatDateBR } from './utils';
 import { Checkbox } from '@/features/ui/checkbox';
 import {
@@ -12,7 +13,6 @@ import {
 } from '@/features/ui/dropdown-menu';
 import {
   MoreVertical,
-  FileText,
   CheckCircle2,
   Clock,
   Trash2,
@@ -25,6 +25,7 @@ import { cn } from '@/shared/cn';
 interface FinancialTableProps {
   invoices: Invoice[];
   selectedIds: string[];
+  pageSize?: number;
   onToggleSelect: (id: string) => void;
   onSelectAll: (checked: boolean) => void;
   onToggleStatus: (id: string) => void;
@@ -35,6 +36,7 @@ interface FinancialTableProps {
 export const FinancialTable: React.FC<FinancialTableProps> = ({
   invoices,
   selectedIds,
+  pageSize = 10,
   onToggleSelect,
   onSelectAll,
   onToggleStatus,
@@ -46,9 +48,11 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
   const someSelected =
     invoices.some((inv) => selectedIds.includes(inv.id)) && !allSelected;
 
+  const emptySlots = invoices.length > 0 ? Math.max(0, pageSize - invoices.length) : 0;
+
   if (invoices.length === 0) {
     return (
-      <div className="py-12 flex flex-col items-center justify-center text-center px-4">
+      <div className="h-[565px] min-h-[565px] flex flex-col items-center justify-center text-center px-4">
         <div className="h-12 w-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-3 border border-border/40">
           <Inbox className="h-6 w-6" />
         </div>
@@ -63,10 +67,10 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse text-xs table-auto">
+    <div className="overflow-x-auto h-[565px] min-h-[565px]">
+      <table className="w-full text-left border-collapse text-xs min-w-[980px]">
         <thead>
-          <tr className="border-b border-border/50 text-[11px] font-semibold text-muted-foreground/80">
+          <tr className="border-b border-border/50 text-[11px] font-semibold text-muted-foreground/80 h-[42px]">
             <th scope="col" className="w-8 py-2.5 pl-2 pr-1">
               <Checkbox
                 checked={allSelected ? true : someSelected ? 'indeterminate' : false}
@@ -74,28 +78,28 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
                 aria-label="Selecionar todas as cobranças"
               />
             </th>
-            <th scope="col" className="py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[110px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Código
             </th>
-            <th scope="col" className="py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="min-w-[170px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Cliente
             </th>
-            <th scope="col" className="py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[185px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Processo
             </th>
-            <th scope="col" className="py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[130px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Advogado
             </th>
-            <th scope="col" className="py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[95px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Valor
             </th>
-            <th scope="col" className="py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[90px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Vencimento
             </th>
-            <th scope="col" className="py-2.5 px-2 text-center font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[125px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Recibo
             </th>
-            <th scope="col" className="py-2.5 px-2 text-center font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[105px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Status
             </th>
             <th scope="col" className="w-8 py-2.5 pr-2 text-right">
@@ -111,7 +115,7 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
               <tr
                 key={inv.id}
                 className={cn(
-                  'transition-colors hover:bg-muted/30 group',
+                  'h-[52px] transition-colors hover:bg-muted/30 group',
                   isSelected && 'bg-primary/[0.03]'
                 )}
               >
@@ -131,7 +135,7 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
 
                 {/* Customer / Client */}
                 <td className="py-2.5 px-2 font-medium text-foreground whitespace-nowrap">
-                  <span className="block max-w-[220px] truncate" title={inv.clientName}>
+                  <span className="block max-w-[180px] truncate" title={inv.clientName}>
                     {inv.clientName}
                   </span>
                 </td>
@@ -159,26 +163,19 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
                 </td>
 
                 {/* Document / Invoice Receipt */}
-                <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                  {inv.hasDocument ? (
-                    <button
-                      type="button"
+                <td className="w-[125px] py-2.5 px-2 whitespace-nowrap">
+                  {inv.hasDocument && inv.documentName ? (
+                    <DocumentReceiptBadge
+                      documentName={inv.documentName}
                       onClick={() => alert(`Baixando comprovante ${inv.documentName}`)}
-                      className="inline-flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors bg-primary/5 hover:bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20"
-                      title={`Baixar ${inv.documentName}`}
-                    >
-                      <FileText className="h-3 w-3 text-rose-500" />
-                      <span className="font-mono font-medium">
-                        {inv.documentName}
-                      </span>
-                    </button>
+                    />
                   ) : (
-                    <span className="text-muted-foreground/50 select-none">-</span>
+                    <span className="text-muted-foreground/50 select-none pl-1">-</span>
                   )}
                 </td>
 
                 {/* Status Badge */}
-                <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                <td className="py-2.5 px-2 whitespace-nowrap">
                   <FinancialStatusBadge status={inv.status} />
                 </td>
 
@@ -246,6 +243,26 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
               </tr>
             );
           })}
+
+          {/* Placeholder rows to keep table height fixed and prevent layout jumping */}
+          {Array.from({ length: emptySlots }).map((_, idx) => (
+            <tr
+              key={`empty-slot-${idx}`}
+              className="h-[52px] select-none pointer-events-none !border-transparent"
+              aria-hidden="true"
+            >
+              <td className="py-2.5 pl-2 pr-1">&nbsp;</td>
+              <td className="py-2.5 px-2">&nbsp;</td>
+              <td className="py-2.5 px-2">&nbsp;</td>
+              <td className="py-2.5 px-2">&nbsp;</td>
+              <td className="py-2.5 px-2">&nbsp;</td>
+              <td className="py-2.5 px-2">&nbsp;</td>
+              <td className="py-2.5 px-2">&nbsp;</td>
+              <td className="w-[125px] py-2.5 px-2">&nbsp;</td>
+              <td className="py-2.5 px-2">&nbsp;</td>
+              <td className="w-8 py-2.5 pr-2">&nbsp;</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

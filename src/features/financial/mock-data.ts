@@ -30,7 +30,7 @@ export const initialInvoices: Invoice[] = [
     paidDate: '2026-10-04',
     status: 'paid',
     hasDocument: true,
-    documentName: 'REC-1002.pdf',
+    documentName: 'comprovante-pix.jpeg',
     notes: 'Honorários sucumbenciais da 2ª Vara Cível da Comarca de Petrolina.',
   },
   {
@@ -60,7 +60,7 @@ export const initialInvoices: Invoice[] = [
     paidDate: '2026-10-08',
     status: 'paid',
     hasDocument: true,
-    documentName: 'REC-1004.pdf',
+    documentName: 'recibo-ted.png',
     notes: 'Defesa trabalhista no TRT-5 Juazeiro.',
   },
   {

@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { X, FileText, Download, Upload, Trash2 } from 'lucide-react';
+import { X, FileText, FileImage, Download, Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/features/ui/button';
 import { FinancialStatusBadge, FeeTypeBadge } from './FinancialBadge';
+import { isImageDocument } from './DocumentReceiptBadge';
 import { Invoice } from './types';
 import { formatCurrency, formatDateBR } from './utils';
 
@@ -180,13 +181,19 @@ export const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({
                 {invoice.hasDocument ? (
                   <div className="flex items-center justify-between p-3 rounded-xl border border-border/60 bg-muted/20">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <FileText className="h-5 w-5 text-rose-500 shrink-0" />
+                      {isImageDocument(invoice.documentName) ? (
+                        <FileImage className="h-5 w-5 text-sky-500 shrink-0" />
+                      ) : (
+                        <FileText className="h-5 w-5 text-rose-500 shrink-0" />
+                      )}
                       <div className="min-w-0">
                         <span className="font-mono text-xs font-medium text-foreground block truncate">
                           {invoice.documentName}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
-                          Comprovante anexado
+                          {isImageDocument(invoice.documentName)
+                            ? 'Comprovante em imagem anexado'
+                            : 'Comprovante em PDF anexado'}
                         </span>
                       </div>
                     </div>
@@ -278,7 +285,11 @@ export const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({
                   {selectedFile ? (
                     <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-background">
                       <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-4 w-4 text-rose-500 shrink-0" />
+                        {isImageDocument(selectedFile.name) ? (
+                          <FileImage className="h-4 w-4 text-sky-500 shrink-0" />
+                        ) : (
+                          <FileText className="h-4 w-4 text-rose-500 shrink-0" />
+                        )}
                         <span className="font-mono text-xs font-medium text-foreground truncate">
                           {selectedFile.name}
                         </span>
