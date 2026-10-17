@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FloatingTabNav } from './FloatingTabNav';
+import { NotificationListItem } from './NotificationListItem';
 import { MessagesContainer } from './MessagesContainer';
+import { initialNotifications } from './mock-data';
+import { NotificationItem } from './types';
 
 describe('FloatingTabNav', () => {
   it('deve renderizar as três abas principais: Notificações, Mensagens e Modelos', () => {
@@ -51,12 +54,42 @@ describe('FloatingTabNav', () => {
   });
 });
 
+describe('NotificationListItem (Modelo Simples de Notificação no Grid)', () => {
+  const sampleNotification: NotificationItem = initialNotifications[0];
+
+  it('deve exibir título, descrição, advogado atribuído, prazo e indicador de não lida', () => {
+    render(<NotificationListItem item={sampleNotification} />);
+
+    expect(screen.getByTestId('notification-unread-dot')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-item-title')).toHaveTextContent(sampleNotification.title);
+    expect(screen.getByText(sampleNotification.assignedLawyer)).toBeInTheDocument();
+    expect(screen.getByText(sampleNotification.deadline)).toBeInTheDocument();
+    expect(screen.getByText('Prazo Fatal')).toBeInTheDocument();
+  });
+
+  it('deve disparar onToggleRead ao clicar no botão de marcar como lida', () => {
+    const handleToggleRead = vi.fn();
+    render(<NotificationListItem item={sampleNotification} onToggleRead={handleToggleRead} />);
+
+    fireEvent.click(screen.getByTestId('toggle-read-btn'));
+    expect(handleToggleRead).toHaveBeenCalledWith(sampleNotification);
+  });
+});
+
 describe('MessagesContainer', () => {
-  it('deve renderizar a tela inicial com a aba de Notificações ativa e bolinha de urgência', () => {
+  it('deve renderizar a tela inicial com a aba de Notificações ativa, grid de notificações e bolinha de urgência', () => {
     render(<MessagesContainer />);
 
     expect(screen.getByRole('heading', { name: /notificações internas/i })).toBeInTheDocument();
     expect(screen.getByTestId('urgency-dot-notifications')).toBeInTheDocument();
+    expect(screen.getAllByTestId('notification-list-item').length).toBeGreaterThan(0);
+  });
+
+  it('deve remover a bolinha de urgência ao marcar todas as notificações como lidas', () => {
+    render(<MessagesContainer />);
+
+    fireEvent.click(screen.getByTestId('mark-all-read-btn'));
+    expect(screen.queryByTestId('urgency-dot-notifications')).not.toBeInTheDocument();
   });
 
   it('deve trocar para a aba de Mensagens ao clicar na respectiva aba', () => {

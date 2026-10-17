@@ -1,23 +1,58 @@
 import * as React from 'react';
-import { Bell, MessageSquare, FileText, AlertCircle, Clock, Sparkles } from 'lucide-react';
+import { Bell, MessageSquare, FileText, Clock, Sparkles, Search, CheckCheck } from 'lucide-react';
 import { GlassPanel } from '@/features/ui/glass-panel';
 import { Button } from '@/features/ui/button';
-import { StatusBadge } from '@/features/ui/status-badge';
 import { FloatingTabNav } from './FloatingTabNav';
-import { MessageTabId } from './types';
+import { NotificationListItem } from './NotificationListItem';
+import { initialNotifications } from './mock-data';
+import { MessageTabId, NotificationItem } from './types';
 
 export const MessagesContainer: React.FC = () => {
   const [activeTab, setActiveTab] = React.useState<MessageTabId>('notifications');
+  const [notifications, setNotifications] = React.useState<NotificationItem[]>(initialNotifications);
+  const [searchTerm, setSearchTerm] = React.useState('');
 
-  // Estado que gerencia a urgência de cada aba (ex: RF11 para Notificações com prazos críticos)
-  const [urgencyMap, setUrgencyMap] = React.useState<Partial<Record<MessageTabId, boolean>>>({
-    notifications: true, // Notificações com alerta ativo por padrão (prazos fatais próximos)
+  // Estado que gerencia a urgência das demais abas
+  const [otherUrgency, setOtherUrgency] = React.useState<{ messages: boolean; templates: boolean }>({
     messages: false,
     templates: false,
   });
 
-  const toggleUrgency = (tabId: MessageTabId) => {
-    setUrgencyMap((prev) => ({
+  const hasUnreadNotifications = React.useMemo(
+    () => notifications.some((n) => !n.isRead),
+    [notifications]
+  );
+
+  const urgencyMap: Partial<Record<MessageTabId, boolean>> = {
+    notifications: hasUnreadNotifications,
+    messages: otherUrgency.messages,
+    templates: otherUrgency.templates,
+  };
+
+  const filteredNotifications = React.useMemo(() => {
+    if (!searchTerm.trim()) return notifications;
+    const term = searchTerm.toLowerCase();
+    return notifications.filter(
+      (n) =>
+        n.title.toLowerCase().includes(term) ||
+        n.description.toLowerCase().includes(term) ||
+        n.assignedLawyer.toLowerCase().includes(term) ||
+        (n.processNumber && n.processNumber.toLowerCase().includes(term))
+    );
+  }, [notifications, searchTerm]);
+
+  const handleToggleRead = (item: NotificationItem) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === item.id ? { ...n, isRead: !n.isRead } : n))
+    );
+  };
+
+  const handleMarkAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const toggleUrgency = (tabId: 'messages' | 'templates') => {
+    setOtherUrgency((prev) => ({
       ...prev,
       [tabId]: !prev[tabId],
     }));
@@ -53,36 +88,52 @@ export const MessagesContainer: React.FC = () => {
                 </p>
               </div>
 
-              {/* Botão de demonstração para testar a bolinha de urgência */}
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => toggleUrgency('notifications')}
-                  className="text-xs"
+                  data-testid="mark-all-read-btn"
+                  onClick={handleMarkAllRead}
+                  disabled={!hasUnreadNotifications}
+                  className="gap-1.5 text-xs"
                 >
-                  {urgencyMap.notifications ? 'Simular: Sem Urgência' : 'Simular: Com Urgência'}
+                  <CheckCheck className="h-4 w-4" />
+                  Marcar todas como lidas
                 </Button>
               </div>
             </div>
 
-            <GlassPanel className="p-8 text-center space-y-4">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-                <AlertCircle className="h-7 w-7" />
+            {/* Barra de Busca */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar notificações por título, processo ou advogado..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-xl border border-border/60 bg-background/80 py-2 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
               </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="text-base font-semibold text-foreground">
-                  Aba de Notificações Pronta para Desenvolvimento
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Aqui ficará o feed de avisos internos aos advogados sobre prazos críticos atribuídos a eles (RF11).
-                </p>
-              </div>
-              <div className="flex justify-center gap-2 pt-2">
-                <StatusBadge status="fatal" label="3 Prazos Críticos Pendentes" />
-                <StatusBadge status="in_progress" label="1 Audiência Próxima" />
-              </div>
-            </GlassPanel>
+            </div>
+
+            {/* Grid / Lista de Notificações */}
+            <div className="space-y-2.5">
+              {filteredNotifications.length === 0 ? (
+                <GlassPanel className="p-8 text-center text-muted-foreground text-xs">
+                  Nenhuma notificação encontrada com os filtros atuais.
+                </GlassPanel>
+              ) : (
+                filteredNotifications.map((notification) => (
+                  <NotificationListItem
+                    key={notification.id}
+                    item={notification}
+                    onSelect={handleToggleRead}
+                    onToggleRead={handleToggleRead}
+                  />
+                ))
+              )}
+            </div>
           </section>
         )}
 
