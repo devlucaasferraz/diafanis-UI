@@ -3,14 +3,14 @@ import {
   Bell,
   MessageSquare,
   FileText,
-  AlertCircle,
   Plus,
   Search,
+  CheckCheck,
 } from 'lucide-react';
 import { GlassPanel } from '@/features/ui/glass-panel';
 import { Button } from '@/features/ui/button';
-import { StatusBadge } from '@/features/ui/status-badge';
 import { FloatingTabNav } from './FloatingTabNav';
+import { NotificationListItem } from './NotificationListItem';
 import { MessageListItem } from './MessageListItem';
 import { MessageModal } from './MessageModal';
 import { ClientRecipientsModal } from './ClientRecipientsModal';
@@ -18,13 +18,21 @@ import { SendConfirmationModal } from './SendConfirmationModal';
 import { ScheduleDispatchModal } from './ScheduleDispatchModal';
 import { MessagePreviewModal } from './MessagePreviewModal';
 import { UseTemplateModal } from './UseTemplateModal';
-import { initialMessages, initialTemplates } from './mock-data';
-import { MessageItem, TemplateItem, MessageTabId, ClientRecipient, ScheduleConfig } from './types';
+import { initialMessages, initialTemplates, initialNotifications } from './mock-data';
+import {
+  MessageItem,
+  TemplateItem,
+  NotificationItem,
+  MessageTabId,
+  ClientRecipient,
+  ScheduleConfig,
+} from './types';
 
 export const MessagesContainer: React.FC = () => {
   const [activeTab, setActiveTab] = React.useState<MessageTabId>('messages');
 
-  // Listas de mensagens e modelos
+  // Listas de notificações, mensagens e modelos
+  const [notifications, setNotifications] = React.useState<NotificationItem[]>(initialNotifications);
   const [messages, setMessages] = React.useState<MessageItem[]>(initialMessages);
   const [templates, setTemplates] = React.useState<TemplateItem[]>(initialTemplates);
 
@@ -52,17 +60,33 @@ export const MessagesContainer: React.FC = () => {
   const [useTemplateItem, setUseTemplateItem] = React.useState<TemplateItem | null>(null);
 
   // Mapeamento dinâmico de urgência (bolinha vermelha na barra de abas)
+  const hasUnreadNotifications = React.useMemo(() => {
+    return notifications.some((n) => !n.isRead);
+  }, [notifications]);
+
   const hasUrgentMessages = React.useMemo(() => {
     return messages.some((m) => m.hasAlert);
   }, [messages]);
 
   const urgencyMap: Partial<Record<MessageTabId, boolean>> = {
-    notifications: true, // Notificações internas com prazos fatais (RF11)
+    notifications: hasUnreadNotifications, // Notificações internas não lidas (RF11)
     messages: hasUrgentMessages, // Alerta dinâmico baseado nas mensagens com alerta
     templates: false,
   };
 
   // Filtragem
+  const filteredNotifications = React.useMemo(() => {
+    if (!searchTerm.trim()) return notifications;
+    const term = searchTerm.toLowerCase();
+    return notifications.filter(
+      (n) =>
+        n.title.toLowerCase().includes(term) ||
+        n.description.toLowerCase().includes(term) ||
+        n.assignedLawyer.toLowerCase().includes(term) ||
+        (n.processNumber && n.processNumber.toLowerCase().includes(term))
+    );
+  }, [notifications, searchTerm]);
+
   const filteredMessages = React.useMemo(() => {
     if (!searchTerm.trim()) return messages;
     const term = searchTerm.toLowerCase();
@@ -83,6 +107,17 @@ export const MessagesContainer: React.FC = () => {
         t.content.toLowerCase().includes(term)
     );
   }, [templates, searchTerm]);
+
+  // Ações de notificações
+  const handleToggleNotificationRead = (item: NotificationItem) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === item.id ? { ...n, isRead: !n.isRead } : n))
+    );
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
 
   // Ações de abertura do modal de edição
   const handleOpenCreate = () => {
@@ -296,25 +331,53 @@ export const MessagesContainer: React.FC = () => {
                   Avisos internos aos advogados sobre prazos críticos atribuídos a eles (RF11).
                 </p>
               </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="mark-all-read-btn"
+                  onClick={handleMarkAllNotificationsRead}
+                  disabled={!hasUnreadNotifications}
+                  className="gap-1.5 text-xs"
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  Marcar todas como lidas
+                </Button>
+              </div>
             </div>
 
-            <GlassPanel className="p-8 text-center space-y-4">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-                <AlertCircle className="h-7 w-7" />
+            {/* Barra de Busca */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar notificações por título, processo ou advogado..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-xl border border-border/60 bg-background/80 py-2 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
               </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="text-base font-semibold text-foreground">
-                  Central de Notificações Internas
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Feed de alertas prioritários sobre prazos fatais e intimações atribuídas aos advogados do escritório.
-                </p>
-              </div>
-              <div className="flex justify-center gap-2 pt-2">
-                <StatusBadge status="fatal" label="3 Prazos Críticos Pendentes" />
-                <StatusBadge status="in_progress" label="1 Audiência Próxima" />
-              </div>
-            </GlassPanel>
+            </div>
+
+            {/* Grid / Lista de Notificações */}
+            <div className="space-y-2.5">
+              {filteredNotifications.length === 0 ? (
+                <GlassPanel className="p-8 text-center text-muted-foreground text-xs">
+                  Nenhuma notificação encontrada com os filtros atuais.
+                </GlassPanel>
+              ) : (
+                filteredNotifications.map((notification) => (
+                  <NotificationListItem
+                    key={notification.id}
+                    item={notification}
+                    onSelect={handleToggleNotificationRead}
+                    onToggleRead={handleToggleNotificationRead}
+                  />
+                ))
+              )}
+            </div>
           </section>
         )}
 

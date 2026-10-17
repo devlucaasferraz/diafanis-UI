@@ -5,6 +5,7 @@ import {
   HearingDateOption,
   MessageItem,
   TemplateItem,
+  NotificationItem,
 } from './types';
 
 export const allOfficeClients: ClientRecipient[] = [
@@ -240,5 +241,52 @@ export const initialTemplates: TemplateItem[] = [
     selectedDate: null,
     description: 'Aviso preventivo de vencimento de honorários.',
     updatedAt: '2026-09-20T17:00:00Z',
+  },
+];
+
+export const initialNotifications: NotificationItem[] = [
+  {
+    id: 'notif-1',
+    title: 'Prazo Fatal: Contestação Cível',
+    description: 'Protocolar contestação antes do encerramento do expediente forense.',
+    processNumber: '0012345-89.2026.8.19.0001',
+    assignedLawyer: 'Dr. Rafael Mendes',
+    deadline: 'Hoje, 18:00',
+    priority: 'fatal',
+    isRead: false,
+    createdAt: '2026-10-17T08:00:00Z',
+  },
+  {
+    id: 'notif-2',
+    title: 'Audiência de Conciliação Amanhã',
+    description: 'Reunião preparatória e conferência de documentos com o cliente.',
+    processNumber: '5004321-12.2025.8.26.0100',
+    assignedLawyer: 'Dra. Camila Borges',
+    deadline: 'Amanhã, 14:30',
+    priority: 'hearing',
+    isRead: false,
+    createdAt: '2026-10-16T16:30:00Z',
+  },
+  {
+    id: 'notif-3',
+    title: 'Intimação de Despacho: Juntada de Guias',
+    description: 'Comprovar recolhimento de custas processuais complementares.',
+    processNumber: '1029384-55.2026.5.02.0045',
+    assignedLawyer: 'Dr. Lucas Ferreira',
+    deadline: '20/10/2026',
+    priority: 'in_progress',
+    isRead: false,
+    createdAt: '2026-10-16T11:15:00Z',
+  },
+  {
+    id: 'notif-4',
+    title: 'Prazo Concluído: Réplica à Contestação',
+    description: 'Peça protocolada e comprovante anexado aos autos internos.',
+    processNumber: '0098765-43.2025.8.13.0024',
+    assignedLawyer: 'Dr. Rafael Mendes',
+    deadline: '15/10/2026',
+    priority: 'in_progress',
+    isRead: true,
+    createdAt: '2026-10-14T09:00:00Z',
   },
 ];

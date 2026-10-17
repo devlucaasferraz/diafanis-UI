@@ -103,3 +103,17 @@ export interface TemplateItem {
   description?: string;
   updatedAt?: string;
 }
+
+export type NotificationPriority = 'fatal' | 'in_progress' | 'hearing';
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  processNumber?: string;
+  assignedLawyer: string;
+  deadline: string;
+  priority: NotificationPriority;
+  isRead: boolean;
+  createdAt: string;
+}

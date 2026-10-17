@@ -8,9 +8,10 @@ import { UseTemplateModal } from './UseTemplateModal';
 import { ClientRecipientsModal } from './ClientRecipientsModal';
 import { SendConfirmationModal } from './SendConfirmationModal';
 import { ScheduleDispatchModal } from './ScheduleDispatchModal';
+import { NotificationListItem } from './NotificationListItem';
 import { MessagesContainer } from './MessagesContainer';
-import { MessageItem, TemplateItem, ClientRecipient } from './types';
-import { allOfficeClients, availableLawsuits } from './mock-data';
+import { MessageItem, TemplateItem, ClientRecipient, NotificationItem } from './types';
+import { allOfficeClients, availableLawsuits, initialNotifications } from './mock-data';
 
 describe('FloatingTabNav', () => {
   it('deve renderizar as três abas principais: Notificações, Mensagens e Modelos', () => {
@@ -768,5 +769,40 @@ describe('MessagesContainer (Integração Completa)', () => {
 
     expect(screen.getByTestId('use-template-modal')).toBeInTheDocument();
     expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
+  });
+
+  it('deve renderizar o grid de notificações na aba de Notificações e permitir marcar como lidas', () => {
+    render(<MessagesContainer />);
+
+    const notificationsTab = screen.getByRole('tab', { name: /notificações/i });
+    fireEvent.click(notificationsTab);
+
+    expect(screen.getByRole('heading', { name: /notificações internas/i })).toBeInTheDocument();
+    expect(screen.getAllByTestId('notification-list-item').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByTestId('mark-all-read-btn'));
+    expect(screen.queryByTestId('urgency-dot-notifications')).not.toBeInTheDocument();
+  });
+});
+
+describe('NotificationListItem (Modelo Simples de Notificação no Grid)', () => {
+  const sampleNotification: NotificationItem = initialNotifications[0];
+
+  it('deve exibir título, descrição, advogado atribuído, prazo e indicador de não lida', () => {
+    render(<NotificationListItem item={sampleNotification} />);
+
+    expect(screen.getByTestId('notification-unread-dot')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-item-title')).toHaveTextContent(sampleNotification.title);
+    expect(screen.getByText(sampleNotification.assignedLawyer)).toBeInTheDocument();
+    expect(screen.getByText(sampleNotification.deadline)).toBeInTheDocument();
+    expect(screen.getByText('Prazo Fatal')).toBeInTheDocument();
+  });
+
+  it('deve disparar onToggleRead ao clicar no botão de marcar como lida', () => {
+    const handleToggleRead = vi.fn();
+    render(<NotificationListItem item={sampleNotification} onToggleRead={handleToggleRead} />);
+
+    fireEvent.click(screen.getByTestId('toggle-read-btn'));
+    expect(handleToggleRead).toHaveBeenCalledWith(sampleNotification);
   });
 });
