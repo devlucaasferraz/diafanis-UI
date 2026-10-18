@@ -1,9 +1,10 @@
 import { createRoute } from '@tanstack/react-router';
 import { Route as rootRoute } from './__root';
-import { FeatureInProgress } from '@/features/ui/feature-in-progress';
+import { MessagesContainer } from '@/features/messages/MessagesContainer';
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
   path: '/messages',
-  component: () => <FeatureInProgress modulePath="/messages" />,
+  component: MessagesContainer,
 });
+
