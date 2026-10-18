@@ -15,6 +15,7 @@ import {
 import { TriageHeaderMetrics } from './TriageHeaderMetrics';
 import { TriageTable } from './TriageTable';
 import { TriageDrawer } from './TriageDrawer';
+import { TriagePagination } from './TriagePagination';
 import {
   NewTriageModal,
   NewTriageSessionPayload,
@@ -25,6 +26,10 @@ export const TriageContainer: React.FC = () => {
   const [currentTab, setCurrentTab] = React.useState<TriageFilterTab>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [showArchived, setShowArchived] = React.useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const pageSize = 5;
 
   // Drawer state
   const [selectedCaseId, setSelectedCaseId] = React.useState<string | null>(null);
@@ -90,6 +95,29 @@ export const TriageContainer: React.FC = () => {
       return true;
     });
   }, [cases, currentTab, searchQuery, showArchived]);
+
+  // Reset page when filtering or searching
+  const handleTabChange = (tab: TriageFilterTab) => {
+    setCurrentTab(tab);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  const handleToggleShowArchived = () => {
+    setShowArchived((prev) => !prev);
+    setCurrentPage(1);
+  };
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredCases.length / pageSize));
+  const paginatedCases = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredCases.slice(start, start + pageSize);
+  }, [filteredCases, currentPage, pageSize]);
 
   const selectedCase = React.useMemo(
     () => cases.find((c) => c.id === selectedCaseId) || null,
@@ -362,6 +390,7 @@ export const TriageContainer: React.FC = () => {
 
     setCases((prev) => [newCase, ...prev]);
     setCurrentTab('all');
+    setCurrentPage(1);
     showFeedback(
       payload.dispararWhatsAppImediatamente
         ? `Nova sessão ${protocolo} criada e WhatsApp disparado para ${payload.cliente.nome}.`
@@ -370,12 +399,12 @@ export const TriageContainer: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto flex flex-col gap-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto flex flex-col gap-5">
       {/* Feedback Banner */}
       {feedbackBanner && (
         <div
           role="status"
-          className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-xs font-medium text-emerald-800 dark:text-emerald-200 animate-in fade-in"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5 text-xs font-medium text-emerald-800 dark:text-emerald-200 animate-in fade-in"
         >
           <div className="flex items-center gap-2">
             <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -392,24 +421,33 @@ export const TriageContainer: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Cabeçalho, 3 Cards de Indicadores e Barra de Filtros */}
+      {/* 1. Cabeçalho, 3 Cards de Indicadores Compactos e Barra de Filtros */}
       <TriageHeaderMetrics
         metrics={metrics}
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={handleTabChange}
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         showArchived={showArchived}
-        onToggleShowArchived={() => setShowArchived((prev) => !prev)}
+        onToggleShowArchived={handleToggleShowArchived}
         onOpenNewTriageModal={() => setIsNewModalOpen(true)}
       />
 
-      {/* 2. Tabela Principal de Atendimentos */}
+      {/* 2. Tabela Principal de Atendimentos Paginada */}
       <TriageTable
-        cases={filteredCases}
+        cases={paginatedCases}
         selectedCaseId={selectedCaseId}
         onSelectCase={handleSelectCase}
         onTakeoverWhatsApp={handleTakeoverWhatsApp}
+        footer={
+          <TriagePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredCases.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+          />
+        }
       />
 
       {/* 3. Drawer Lateral de Detalhes & Conferência (Split-View) */}

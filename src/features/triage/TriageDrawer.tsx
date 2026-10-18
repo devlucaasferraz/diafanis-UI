@@ -441,19 +441,28 @@ export const TriageDrawer: React.FC<TriageDrawerProps> = ({
                     Caso o cliente tenha enviado o documento por e-mail, balcão físico ou você tenha emitido no portal Gov.br/Meu INSS:
                   </p>
 
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <select
-                      aria-label="Selecionar tipo de documento para upload manual"
-                      value={uploadTargetDocId}
-                      onChange={(e) => setUploadTargetDocId(e.target.value)}
-                      className="h-8 flex-1 rounded-xl border border-border/70 bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {triageCase.documentos.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.tipo_documento} ({d.status})
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor="drawer-manual-doc-select"
+                        className="text-[11px] font-semibold text-muted-foreground"
+                      >
+                        Documento a regularizar / anexar:
+                      </label>
+                      <select
+                        id="drawer-manual-doc-select"
+                        aria-label="Selecionar tipo de documento para upload manual"
+                        value={uploadTargetDocId}
+                        onChange={(e) => setUploadTargetDocId(e.target.value)}
+                        className="h-8.5 w-full rounded-xl border border-border/70 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {triageCase.documentos.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.tipo_documento} ({d.status})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     <input
                       ref={fileInputRef}
@@ -469,10 +478,10 @@ export const TriageDrawer: React.FC<TriageDrawerProps> = ({
                       variant="secondary"
                       size="sm"
                       onClick={handleSimulatedManualUpload}
-                      className="gap-1.5 shrink-0"
+                      className="w-full justify-center gap-1.5 h-8.5 text-xs"
                     >
                       <Upload className="size-3.5" />
-                      <span>Anexar <br /> arquivo</span>
+                      <span>Anexar arquivo manualmente</span>
                     </Button>
                   </div>
                 </div>

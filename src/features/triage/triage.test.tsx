@@ -44,14 +44,14 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     vi.spyOn(window, 'open').mockImplementation(() => null);
   });
 
-  it('deve renderizar o cabeçalho, os 3 cards de indicadores e as 5 abas de filtro', () => {
+  it('deve renderizar o cabeçalho, os 3 cards de indicadores despoluídos e as 5 abas de filtro', () => {
     render(<TriageContainer />);
 
     expect(
       screen.getByRole('heading', { name: /Central de Documentos & Triagem/i })
     ).toBeInTheDocument();
 
-    // 3 Metric Cards
+    // 3 Metric Cards (enxutos e sem poluição de texto)
     expect(screen.getByText('Em Coleta (Bot WhatsApp)')).toBeInTheDocument();
     expect(screen.getByTestId('metric-in-collection')).toHaveTextContent('2');
 
@@ -75,6 +75,30 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     expect(
       screen.getByRole('tab', { name: /Em Andamento \(Processos\)/i })
     ).toBeInTheDocument();
+  });
+
+  it('deve paginar os atendimentos e permitir navegar entre as páginas', () => {
+    render(<TriageContainer />);
+
+    // Na página 1 de 2 (pageSize=5, total=6)
+    expect(screen.getByText(/Página/i)).toBeInTheDocument();
+    expect(screen.getByText(/mostrando 1–5 de 6 atendimentos/i)).toBeInTheDocument();
+
+    // Os 5 primeiros casos devem estar visíveis
+    expect(screen.getByText('Maria de Lourdes Conceição')).toBeInTheDocument();
+    expect(screen.getByText('Terezinha Soares da Silva')).toBeInTheDocument();
+
+    // O 6º caso (Marcos Vinícius Peixoto) não deve estar na página 1
+    expect(screen.queryByText('Marcos Vinícius Peixoto')).not.toBeInTheDocument();
+
+    // Clicar no botão 'Próximo' ou página '2'
+    const nextBtn = screen.getByRole('button', { name: /Próximo/i });
+    fireEvent.click(nextBtn);
+
+    // Agora o 6º caso deve estar visível
+    expect(screen.getByText('Marcos Vinícius Peixoto')).toBeInTheDocument();
+    expect(screen.getByText(/mostrando 6–6 de 6 atendimentos/i)).toBeInTheDocument();
+    expect(screen.queryByText('Maria de Lourdes Conceição')).not.toBeInTheDocument();
   });
 
   it('deve filtrar os atendimentos pelas abas e pelo campo de busca rápida (nome, CPF ou CNJ)', () => {
@@ -103,11 +127,14 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('deve abrir o Drawer lateral em Split-View ao clicar em uma linha, permitindo aprovar documento e realizar upload manual', () => {
+  it('deve abrir o Drawer lateral em Split-View ao clicar em uma linha ou no botão "Analisar", permitindo aprovar documento e upload manual', () => {
     render(<TriageContainer />);
 
-    // Clicar no caso de Sebastião Ferreira
-    fireEvent.click(screen.getByText('Sebastião Ferreira dos Santos'));
+    // Clicar no botão 'Analisar' de Sebastião Ferreira
+    const analyzeButtons = screen.getAllByRole('button', {
+      name: /Ver Documentos & Análise/i,
+    });
+    fireEvent.click(analyzeButtons[1]); // Sebastião Ferreira
 
     // Verifica que o Drawer abriu com o resumo do bot e o visualizador integrado
     expect(
@@ -115,6 +142,14 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Conferência Digital Diafanís/i)
+    ).toBeInTheDocument();
+
+    // Verifica que a seção de Upload Manual está presente com o seletor estruturado
+    expect(
+      screen.getByText(/Documento a regularizar \/ anexar:/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Anexar arquivo manualmente/i })
     ).toBeInTheDocument();
 
     // Aprovar o documento 'Extrato CNIS Completo'
@@ -228,7 +263,7 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     render(<TriageContainer />);
 
     fireEvent.click(
-      screen.getByRole('button', { name: /\+ Nova Sessão de Coleta/i })
+      screen.getByRole('button', { name: /Nova Sessão de Coleta/i })
     );
 
     expect(

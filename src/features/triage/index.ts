@@ -3,6 +3,7 @@ export * from './mock-data';
 export * from './TriageBadges';
 export * from './TriageHeaderMetrics';
 export * from './TriageTable';
+export * from './TriagePagination';
 export * from './TriageDrawer';
 export * from './RejectDocumentModal';
 export * from './LinkProcessModal';
