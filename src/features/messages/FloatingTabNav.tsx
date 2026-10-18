@@ -39,9 +39,9 @@ export const FloatingTabNav: React.FC<FloatingTabNavProps> = ({
   className,
 }) => {
   return (
-    <header
+    <div
       className={cn(
-        'sticky top-3 z-20 flex justify-center w-full px-4 pointer-events-none transition-all duration-300',
+        'sticky top-20 z-20 flex justify-center w-full px-4 pointer-events-none transition-all duration-300',
         className
       )}
       aria-label="Navegação secundária de notificações e mensagens"
@@ -49,7 +49,7 @@ export const FloatingTabNav: React.FC<FloatingTabNavProps> = ({
       <nav
         role="tablist"
         aria-label="Abas da central de notificações e mensagens"
-        className="pointer-events-auto inline-flex items-center gap-1.5 p-1.5 rounded-full border border-border/60 bg-card/85 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/20"
+        className="pointer-events-auto inline-flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-full border border-border/70 bg-card/85 dark:bg-card/90 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/25 transition-all"
       >
         {DEFAULT_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -66,7 +66,7 @@ export const FloatingTabNav: React.FC<FloatingTabNavProps> = ({
               aria-controls={`tabpanel-${tab.id}`}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                'group relative flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-full select-none transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                'group relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold rounded-full select-none transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                 isActive
                   ? 'text-primary dark:text-foreground font-bold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -107,6 +107,6 @@ export const FloatingTabNav: React.FC<FloatingTabNavProps> = ({
           );
         })}
       </nav>
-    </header>
+    </div>
   );
 };

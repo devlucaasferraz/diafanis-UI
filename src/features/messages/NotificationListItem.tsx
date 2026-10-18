@@ -44,19 +44,24 @@ export const NotificationListItem: React.FC<NotificationListItemProps> = ({
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Esquerda: Indicador de não lida, Título, Descrição e Metadados */}
-        <div className="space-y-1.5 min-w-0 flex-1">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {!item.isRead && (
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          {/* Indicador de não lida com largura reservada para manter alinhamento */}
+          <div className="pt-1 shrink-0">
+            {!item.isRead ? (
               <span
                 data-testid="notification-unread-dot"
                 title="Notificação não lida"
-                className="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center"
+                className="relative flex h-2.5 w-2.5 items-center justify-center"
               >
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-600 ring-2 ring-background" />
               </span>
+            ) : (
+              <span className="inline-block w-2.5 h-2.5" />
             )}
+          </div>
 
+          <div className="space-y-1 min-w-0 flex-1">
             <h3
               data-testid="notification-item-title"
               className="text-sm font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors truncate"
@@ -64,29 +69,29 @@ export const NotificationListItem: React.FC<NotificationListItemProps> = ({
             >
               {item.title}
             </h3>
-          </div>
 
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {item.description}
-          </p>
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {item.description}
+            </p>
 
-          <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-muted-foreground">
-            {item.processNumber && (
-              <span className="inline-flex items-center gap-1 font-mono">
-                <Scale className="h-3 w-3 text-primary/80" />
-                {item.processNumber}
+            <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-muted-foreground">
+              {item.processNumber && (
+                <span className="inline-flex items-center gap-1.5 text-foreground/80">
+                  <Scale className="h-3 w-3 text-primary shrink-0 -translate-y-[1px]" />
+                  <span className="font-mono">{item.processNumber}</span>
+                </span>
+              )}
+
+              <span className="inline-flex items-center gap-1.5">
+                <User className="h-3 w-3 text-muted-foreground/80 shrink-0" />
+                <span>{item.assignedLawyer}</span>
               </span>
-            )}
 
-            <span className="inline-flex items-center gap-1">
-              <User className="h-3 w-3 text-muted-foreground/80" />
-              {item.assignedLawyer}
-            </span>
-
-            <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-              <Clock className="h-3 w-3 text-amber-500" />
-              {item.deadline}
-            </span>
+              <span className="inline-flex items-center gap-1.5 font-medium text-foreground/80">
+                <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+                <span>{item.deadline}</span>
+              </span>
+            </div>
           </div>
         </div>
 

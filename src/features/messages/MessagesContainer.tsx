@@ -29,7 +29,16 @@ import {
 } from './types';
 
 export const MessagesContainer: React.FC = () => {
-  const [activeTab, setActiveTab] = React.useState<MessageTabId>('messages');
+  const [activeTab, setActiveTab] = React.useState<MessageTabId>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'notifications' || tabParam === 'templates' || tabParam === 'messages') {
+        return tabParam;
+      }
+    }
+    return 'messages';
+  });
 
   // Listas de notificações, mensagens e modelos
   const [notifications, setNotifications] = React.useState<NotificationItem[]>(initialNotifications);
@@ -69,7 +78,7 @@ export const MessagesContainer: React.FC = () => {
   }, [messages]);
 
   const urgencyMap: Partial<Record<MessageTabId, boolean>> = {
-    notifications: hasUnreadNotifications, // Notificações internas não lidas (RF11)
+    notifications: hasUnreadNotifications, // Notificações internas não lidas
     messages: hasUrgentMessages, // Alerta dinâmico baseado nas mensagens com alerta
     templates: false,
   };
@@ -304,15 +313,17 @@ export const MessagesContainer: React.FC = () => {
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] pb-16">
-      {/* Barra de Navegação Persistente e Flutuante no Centro Superior */}
-      <FloatingTabNav
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        urgencyMap={urgencyMap}
-      />
+      {/* Barra de Navegação Flutuante (Floating Island) */}
+      <div className="pt-5 pb-2">
+        <FloatingTabNav
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          urgencyMap={urgencyMap}
+        />
+      </div>
 
       {/* Conteúdo Principal de cada Aba */}
-      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6 lg:px-8 space-y-6">
         {/* Painel da Aba: Notificações */}
         {activeTab === 'notifications' && (
           <section
@@ -321,6 +332,7 @@ export const MessagesContainer: React.FC = () => {
             aria-labelledby="tab-notifications"
             className="space-y-6 animate-in fade-in-50 duration-300"
           >
+            {/* Header da Aba com Título e Ação */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -328,7 +340,7 @@ export const MessagesContainer: React.FC = () => {
                   Notificações Internas
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Avisos internos aos advogados sobre prazos críticos atribuídos a eles (RF11).
+                  Avisos internos aos advogados sobre prazos críticos e tarefas atribuídas.
                 </p>
               </div>
 
@@ -339,7 +351,7 @@ export const MessagesContainer: React.FC = () => {
                   data-testid="mark-all-read-btn"
                   onClick={handleMarkAllNotificationsRead}
                   disabled={!hasUnreadNotifications}
-                  className="gap-1.5 text-xs"
+                  className="gap-1.5 text-xs shadow-sm"
                 >
                   <CheckCheck className="h-4 w-4" />
                   Marcar todas como lidas
@@ -397,7 +409,7 @@ export const MessagesContainer: React.FC = () => {
                   Mensagens
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Comunicação direta com clientes, lembretes de audiência e felicitações (RF9).
+                  Comunicação direta com clientes, lembretes de audiência e felicitações.
                 </p>
               </div>
 
@@ -471,7 +483,7 @@ export const MessagesContainer: React.FC = () => {
                   Modelos de Disparo
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Templates padrão de felicitação ou aviso de audiência para envio manual ou webhook futuro (RF10).
+                  Modelos pré-configurados de felicitação e convocação para envio rápido ou agendado.
                 </p>
               </div>
 

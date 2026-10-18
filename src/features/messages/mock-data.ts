@@ -208,7 +208,7 @@ export const initialMessages: MessageItem[] = [
 export const initialTemplates: TemplateItem[] = [
   {
     id: 'tmpl-1',
-    title: 'Modelo Padrão: Felicitação de Aniversário (RF10)',
+    title: 'Modelo Padrão: Felicitação de Aniversário',
     content: 'Prezado(a) @cliente.nome, parabenizamos você pelo seu dia @cliente.data_aniversario! Que este novo ano traga muitas conquistas.',
     category: 'birthday',
     clients: [],
@@ -220,7 +220,7 @@ export const initialTemplates: TemplateItem[] = [
   },
   {
     id: 'tmpl-2',
-    title: 'Modelo Padrão: Convocação para Audiência (RF10)',
+    title: 'Modelo Padrão: Convocação para Audiência',
     content: 'Atenção @cliente.nome: sua audiência no processo @processo.numero foi pautada para @data.audiencia no endereço @data.local.',
     category: 'hearing',
     clients: [],
