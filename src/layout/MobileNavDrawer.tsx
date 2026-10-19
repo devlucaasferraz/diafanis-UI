@@ -47,7 +47,10 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
         <nav className="flex flex-col gap-1 p-4">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentPath === item.to || (item.to === '/calendar' && currentPath.startsWith('/calendar'));
+            const isActive =
+              currentPath === item.to ||
+              (item.to === '/calendar' && currentPath.startsWith('/calendar')) ||
+              (item.to === '/deadlines' && currentPath.startsWith('/deadlines'));
 
             return (
               <Link
