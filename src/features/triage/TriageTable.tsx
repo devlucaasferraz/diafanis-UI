@@ -1,14 +1,24 @@
 import * as React from 'react';
 import {
-  FileCheck2,
   MessageCircle,
   ExternalLink,
   FolderOpen,
   AlertTriangle,
+  MoreVertical,
+  Eye,
+  Scale,
+  Archive,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/features/ui/avatar';
 import { Button } from '@/features/ui/button';
 import { GlassPanel } from '@/features/ui/glass-panel';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/features/ui/dropdown-menu';
 import { TriageCase } from './types';
 import {
   TriageStatusBadge,
@@ -27,6 +37,8 @@ interface TriageTableProps {
   selectedCaseId?: string | null;
   onSelectCase: (triageCase: TriageCase, initialDocumentId?: string) => void;
   onTakeoverWhatsApp: (triageCase: TriageCase) => void;
+  onOpenLinkProcess?: (triageCase: TriageCase) => void;
+  onCompleteTriage?: (caseId: string) => void;
   footer?: React.ReactNode;
 }
 
@@ -35,6 +47,8 @@ export const TriageTable: React.FC<TriageTableProps> = ({
   selectedCaseId,
   onSelectCase,
   onTakeoverWhatsApp,
+  onOpenLinkProcess,
+  onCompleteTriage,
   footer,
 }) => {
   if (cases.length === 0) {
@@ -55,8 +69,9 @@ export const TriageTable: React.FC<TriageTableProps> = ({
 
   return (
     <GlassPanel className="overflow-hidden">
-      <div className="w-full overflow-x-auto lg:overflow-x-visible">
-        <table className="w-full text-left border-collapse text-xs">
+      {/* Container com scroll horizontal seguro para monitores menores */}
+      <div className="w-full overflow-x-auto scrollbar-thin">
+        <table className="w-full text-left border-collapse text-xs min-w-[860px]">
           <thead>
             <tr className="border-b border-border/50 bg-muted/20 text-[11px] font-semibold text-muted-foreground h-10">
               <th scope="col" className="py-2.5 pl-4 pr-2 font-semibold">
@@ -74,7 +89,7 @@ export const TriageTable: React.FC<TriageTableProps> = ({
               <th scope="col" className="py-2.5 px-2 font-semibold">
                 Status
               </th>
-              <th scope="col" className="py-2.5 pl-2 pr-4 text-right font-semibold">
+              <th scope="col" className="py-2.5 pl-2 pr-4 text-right font-semibold w-[90px]">
                 Ações
               </th>
             </tr>
@@ -197,24 +212,13 @@ export const TriageTable: React.FC<TriageTableProps> = ({
                     />
                   </td>
 
-                  {/* Coluna 6: Ações (Compactas sem transbordar) */}
+                  {/* Coluna 6: Ações (Atalho WhatsApp + Menu Dropdown) */}
                   <td
                     className="py-3 pl-2 pr-4 text-right whitespace-nowrap"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="inline-flex items-center justify-end gap-1.5">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => onSelectCase(item)}
-                        className="h-7 px-2 text-[11px] gap-1 shadow-2xs"
-                        title="Ver Documentos & Análise"
-                        aria-label="Ver Documentos & Análise"
-                      >
-                        <FileCheck2 className="size-3" />
-                        <span>Analisar</span>
-                      </Button>
-
+                    <div className="inline-flex items-center justify-end gap-1">
+                      {/* Atalho Direto WhatsApp */}
                       <Button
                         variant="outline"
                         size="sm"
@@ -225,6 +229,60 @@ export const TriageTable: React.FC<TriageTableProps> = ({
                       >
                         <MessageCircle className="size-3.5" />
                       </Button>
+
+                      {/* Menu de Opções Dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="size-7 rounded-lg inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            title="Mais opções do atendimento"
+                            aria-label={`Mais opções do atendimento ${item.protocolo}`}
+                          >
+                            <MoreVertical className="size-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem
+                            onClick={() => onSelectCase(item)}
+                            className="gap-2"
+                          >
+                            <Eye className="size-3.5 text-muted-foreground" />
+                            <span>Ver Detalhes & Conferência</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => onTakeoverWhatsApp(item)}
+                            className="gap-2 text-emerald-700 dark:text-emerald-400 focus:text-emerald-700"
+                          >
+                            <MessageCircle className="size-3.5" />
+                            <span>Assumir no WhatsApp</span>
+                          </DropdownMenuItem>
+
+                          {!item.processo && onOpenLinkProcess && (
+                            <DropdownMenuItem
+                              onClick={() => onOpenLinkProcess(item)}
+                              className="gap-2"
+                            >
+                              <Scale className="size-3.5 text-primary" />
+                              <span>Vincular a Processo</span>
+                            </DropdownMenuItem>
+                          )}
+
+                          {onCompleteTriage && !item.arquivado && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => onCompleteTriage(item.id)}
+                                className="gap-2 text-muted-foreground hover:text-foreground"
+                              >
+                                <Archive className="size-3.5" />
+                                <span>Concluir & Arquivar</span>
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>
@@ -234,7 +292,7 @@ export const TriageTable: React.FC<TriageTableProps> = ({
         </table>
       </div>
 
-      {/* Optional pagination footer */}
+      {/* Paginação Fixada na base da tabela fora do scroll horizontal */}
       {footer}
     </GlassPanel>
   );

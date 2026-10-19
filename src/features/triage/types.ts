@@ -12,8 +12,12 @@ export type TriageStatus =
 
 export type TriageFilterTab =
   | 'all'
+  | 'collection'
   | 'ready'
-  | 'manual'
+  | 'manual';
+
+export type ProcessFilterType =
+  | 'all'
   | 'leads'
   | 'ongoing';
 

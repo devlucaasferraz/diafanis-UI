@@ -3,6 +3,7 @@ import { CheckCircle2, X } from 'lucide-react';
 import {
   TriageCase,
   TriageFilterTab,
+  ProcessFilterType,
   Processo,
   Documento,
 } from './types';
@@ -16,6 +17,7 @@ import { TriageHeaderMetrics } from './TriageHeaderMetrics';
 import { TriageTable } from './TriageTable';
 import { TriageDrawer } from './TriageDrawer';
 import { TriagePagination } from './TriagePagination';
+import { LinkProcessModal } from './LinkProcessModal';
 import {
   NewTriageModal,
   NewTriageSessionPayload,
@@ -24,6 +26,7 @@ import {
 export const TriageContainer: React.FC = () => {
   const [cases, setCases] = React.useState<TriageCase[]>(initialTriageCases);
   const [currentTab, setCurrentTab] = React.useState<TriageFilterTab>('all');
+  const [processFilter, setProcessFilter] = React.useState<ProcessFilterType>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [showArchived, setShowArchived] = React.useState(false);
 
@@ -36,6 +39,10 @@ export const TriageContainer: React.FC = () => {
   const [drawerInitialDocId, setDrawerInitialDocId] = React.useState<string | null>(
     null
   );
+
+  // Quick link process modal from table
+  const [linkProcessTargetCase, setLinkProcessTargetCase] =
+    React.useState<TriageCase | null>(null);
 
   // New Triage Modal state
   const [isNewModalOpen, setIsNewModalOpen] = React.useState(false);
@@ -55,19 +62,35 @@ export const TriageContainer: React.FC = () => {
     return cases.filter((item) => {
       if (!showArchived && item.arquivado) return false;
 
-      if (currentTab === 'ready' && item.status_triagem !== 'Pronto para Análise') {
+      // Status tab filter
+      if (
+        currentTab === 'collection' &&
+        item.status_triagem !== 'Coleta em Andamento'
+      ) {
         return false;
       }
-      if (currentTab === 'manual' && item.status_triagem !== 'Intervenção Manual') {
+      if (
+        currentTab === 'ready' &&
+        item.status_triagem !== 'Pronto para Análise'
+      ) {
         return false;
       }
-      if (currentTab === 'leads' && item.processo !== null) {
-        return false;
-      }
-      if (currentTab === 'ongoing' && item.processo === null) {
+      if (
+        currentTab === 'manual' &&
+        item.status_triagem !== 'Intervenção Manual'
+      ) {
         return false;
       }
 
+      // Process phase filter
+      if (processFilter === 'leads' && item.processo !== null) {
+        return false;
+      }
+      if (processFilter === 'ongoing' && item.processo === null) {
+        return false;
+      }
+
+      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchName = item.cliente.nome.toLowerCase().includes(q);
@@ -94,11 +117,16 @@ export const TriageContainer: React.FC = () => {
 
       return true;
     });
-  }, [cases, currentTab, searchQuery, showArchived]);
+  }, [cases, currentTab, processFilter, searchQuery, showArchived]);
 
   // Reset page when filtering or searching
   const handleTabChange = (tab: TriageFilterTab) => {
     setCurrentTab(tab);
+    setCurrentPage(1);
+  };
+
+  const handleProcessFilterChange = (filter: ProcessFilterType) => {
+    setProcessFilter(filter);
     setCurrentPage(1);
   };
 
@@ -390,6 +418,7 @@ export const TriageContainer: React.FC = () => {
 
     setCases((prev) => [newCase, ...prev]);
     setCurrentTab('all');
+    setProcessFilter('all');
     setCurrentPage(1);
     showFeedback(
       payload.dispararWhatsAppImediatamente
@@ -421,11 +450,13 @@ export const TriageContainer: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Cabeçalho, 3 Cards de Indicadores Compactos e Barra de Filtros */}
+      {/* 1. Cabeçalho, 3 Cards de Indicadores e Barra de Filtros em 2 Níveis */}
       <TriageHeaderMetrics
         metrics={metrics}
         currentTab={currentTab}
         onTabChange={handleTabChange}
+        processFilter={processFilter}
+        onProcessFilterChange={handleProcessFilterChange}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
         showArchived={showArchived}
@@ -439,6 +470,8 @@ export const TriageContainer: React.FC = () => {
         selectedCaseId={selectedCaseId}
         onSelectCase={handleSelectCase}
         onTakeoverWhatsApp={handleTakeoverWhatsApp}
+        onOpenLinkProcess={(c) => setLinkProcessTargetCase(c)}
+        onCompleteTriage={handleCompleteTriage}
         footer={
           <TriagePagination
             currentPage={currentPage}
@@ -463,6 +496,19 @@ export const TriageContainer: React.FC = () => {
         onToggleBotPause={handleToggleBotPause}
         onCompleteTriage={handleCompleteTriage}
       />
+
+      {/* Modal de Vínculo a Processo Existente acionado pelo Menu da Tabela */}
+      {linkProcessTargetCase && (
+        <LinkProcessModal
+          isOpen={Boolean(linkProcessTargetCase)}
+          clientName={linkProcessTargetCase.cliente.nome}
+          onClose={() => setLinkProcessTargetCase(null)}
+          onLinkProcess={(proc) => {
+            handleLinkProcess(linkProcessTargetCase.id, proc);
+            setLinkProcessTargetCase(null);
+          }}
+        />
+      )}
 
       {/* 4. Modal / Dialog de Nova Coleta */}
       <NewTriageModal

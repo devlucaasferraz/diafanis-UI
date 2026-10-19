@@ -7,10 +7,11 @@ import {
   X,
   Plus,
   Archive,
+  Filter,
 } from 'lucide-react';
 import { GlassPanel } from '@/features/ui/glass-panel';
 import { Button } from '@/features/ui/button';
-import { TriageFilterTab } from './types';
+import { TriageFilterTab, ProcessFilterType } from './types';
 import { cn } from '@/shared/cn';
 
 interface TriageMetricsData {
@@ -27,6 +28,8 @@ interface TriageHeaderMetricsProps {
   metrics: TriageMetricsData;
   currentTab: TriageFilterTab;
   onTabChange: (tab: TriageFilterTab) => void;
+  processFilter: ProcessFilterType;
+  onProcessFilterChange: (type: ProcessFilterType) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   showArchived: boolean;
@@ -38,14 +41,21 @@ export const TriageHeaderMetrics: React.FC<TriageHeaderMetricsProps> = ({
   metrics,
   currentTab,
   onTabChange,
+  processFilter,
+  onProcessFilterChange,
   searchQuery,
   onSearchChange,
   showArchived,
   onToggleShowArchived,
   onOpenNewTriageModal,
 }) => {
-  const tabs: { id: TriageFilterTab; label: string; count: number }[] = [
+  const statusTabs: { id: TriageFilterTab; label: string; count: number }[] = [
     { id: 'all', label: 'Todos', count: metrics.totalActive },
+    {
+      id: 'collection',
+      label: 'Em Coleta (Bot)',
+      count: metrics.inCollectionCount,
+    },
     {
       id: 'ready',
       label: 'Prontos p/ Análise',
@@ -56,60 +66,36 @@ export const TriageHeaderMetrics: React.FC<TriageHeaderMetricsProps> = ({
       label: 'Intervenção Manual',
       count: metrics.manualInterventionCount,
     },
-    {
-      id: 'leads',
-      label: 'Pré-processuais (Leads)',
-      count: metrics.leadsCount,
-    },
-    {
-      id: 'ongoing',
-      label: 'Em Andamento (Processos)',
-      count: metrics.ongoingCount,
-    },
   ];
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">
-            Central de Documentos & Triagem
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Conferência de pacotes documentais do WhatsApp, validação de arquivos e intervenção assistida.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button
-            variant="default"
-            size="default"
-            onClick={onOpenNewTriageModal}
-            className="gap-2 shadow-sm"
-          >
-            <Plus className="size-4" />
-            <span>Nova Sessão de Coleta</span>
-          </Button>
-        </div>
+      {/* Page Header (sem o botão duplicado, agora na barra de filtros) */}
+      <div className="flex flex-col gap-0.5">
+        <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">
+          Central de Documentos & Triagem
+        </h1>
+        <p className="text-xs text-muted-foreground">
+          Conferência de pacotes documentais do WhatsApp, validação de arquivos e intervenção assistida.
+        </p>
       </div>
 
       {/* 3 Streamlined Indicator Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Card 1: Em Coleta (Bot WhatsApp) */}
+        {/* Card 1: Em Coleta (Bot WhatsApp) -> Agora filtra especificamente por 'collection' */}
         <GlassPanel
-          onClick={() => onTabChange('all')}
+          onClick={() => onTabChange('collection')}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              onTabChange('all');
+              onTabChange('collection');
             }
           }}
           className={cn(
             'p-3.5 sm:p-4 cursor-pointer transition-all hover:border-primary/40 flex items-center justify-between gap-3',
-            currentTab === 'all' && 'ring-1 ring-primary/30 border-primary/40'
+            currentTab === 'collection' && 'ring-1 ring-primary/40 border-primary/40 bg-primary/[0.03]'
           )}
         >
           <div className="flex flex-col gap-0.5">
@@ -146,7 +132,7 @@ export const TriageHeaderMetrics: React.FC<TriageHeaderMetricsProps> = ({
           }}
           className={cn(
             'p-3.5 sm:p-4 cursor-pointer transition-all hover:border-emerald-500/50 flex items-center justify-between gap-3',
-            currentTab === 'ready' && 'ring-1 ring-emerald-500/40 border-emerald-500/40'
+            currentTab === 'ready' && 'ring-1 ring-emerald-500/40 border-emerald-500/40 bg-emerald-500/[0.03]'
           )}
         >
           <div className="flex flex-col gap-0.5">
@@ -183,7 +169,7 @@ export const TriageHeaderMetrics: React.FC<TriageHeaderMetricsProps> = ({
           }}
           className={cn(
             'p-3.5 sm:p-4 cursor-pointer transition-all hover:border-amber-500/50 flex items-center justify-between gap-3',
-            currentTab === 'manual' && 'ring-1 ring-amber-500/40 border-amber-500/40'
+            currentTab === 'manual' && 'ring-1 ring-amber-500/40 border-amber-500/40 bg-amber-500/[0.03]'
           )}
         >
           <div className="flex flex-col gap-0.5">
@@ -208,49 +194,62 @@ export const TriageHeaderMetrics: React.FC<TriageHeaderMetricsProps> = ({
         </GlassPanel>
       </div>
 
-      {/* Filter Bar */}
-      <GlassPanel className="p-3.5 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-        {/* Navigation Tabs */}
-        <div
-          className="flex items-center gap-1 overflow-x-auto pb-1 xl:pb-0 scrollbar-none"
-          role="tablist"
-          aria-label="Filtros de triagem"
-        >
-          {tabs.map((tab) => {
-            const isActive = currentTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => onTabChange(tab.id)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all select-none whitespace-nowrap',
-                  isActive
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                )}
-              >
-                <span>{tab.label}</span>
-                <span
+      {/* Filter Bar em 2 Níveis Estruturados */}
+      <GlassPanel className="p-3.5 flex flex-col gap-3">
+        {/* Nível 1: Abas de Status da Coleta (Esquerda) + Botão Nova Sessão (Direita) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/40">
+          <div
+            className="flex items-center gap-1 overflow-x-auto pb-0.5 sm:pb-0 scrollbar-none"
+            role="tablist"
+            aria-label="Filtros de status da triagem"
+          >
+            {statusTabs.map((tab) => {
+              const isActive = currentTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => onTabChange(tab.id)}
                   className={cn(
-                    'text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all select-none whitespace-nowrap',
                     isActive
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
+                      ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                   )}
                 >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
+                  <span>{tab.label}</span>
+                  <span
+                    className={cn(
+                      'text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
+                      isActive
+                        ? 'bg-primary-foreground/20 text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    )}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onOpenNewTriageModal}
+            className="gap-1.5 h-8.5 rounded-xl text-xs shadow-sm self-start sm:self-auto shrink-0"
+          >
+            <Plus className="size-3.5" />
+            <span>Nova Sessão de Coleta</span>
+          </Button>
         </div>
 
-        {/* Search & Archive Toggle */}
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-          <div className="relative flex-1 sm:w-72 min-w-[200px]">
+        {/* Nível 2: Busca Rápida (Esquerda) + Filtro de Processo & Arquivados (Direita) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {/* Busca Rápida */}
+          <div className="relative flex-1 sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <input
               type="text"
@@ -273,18 +272,41 @@ export const TriageHeaderMetrics: React.FC<TriageHeaderMetricsProps> = ({
             )}
           </div>
 
-          {metrics.archivedCount > 0 && (
-            <Button
-              variant={showArchived ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={onToggleShowArchived}
-              className="gap-1.5 h-8.5 rounded-xl shrink-0 text-xs"
-              title="Alternar exibição de triagens arquivadas"
-            >
-              <Archive className="size-3.5" />
-              <span>Arquivados ({metrics.archivedCount})</span>
-            </Button>
-          )}
+          {/* Controles da Direita: Filtro de Fase Processual + Arquivados */}
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <Filter className="size-3.5 text-muted-foreground shrink-0 hidden sm:block" />
+              <select
+                aria-label="Filtrar por fase processual"
+                value={processFilter}
+                onChange={(e) =>
+                  onProcessFilterChange(e.target.value as ProcessFilterType)
+                }
+                className="h-8.5 rounded-xl border border-border/70 bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+              >
+                <option value="all">Todas as Fases</option>
+                <option value="leads">
+                  Pré-processuais (Leads) ({metrics.leadsCount})
+                </option>
+                <option value="ongoing">
+                  Em Andamento (Processos) ({metrics.ongoingCount})
+                </option>
+              </select>
+            </div>
+
+            {metrics.archivedCount > 0 && (
+              <Button
+                variant={showArchived ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={onToggleShowArchived}
+                className="gap-1.5 h-8.5 rounded-xl shrink-0 text-xs"
+                title="Alternar exibição de triagens arquivadas"
+              >
+                <Archive className="size-3.5" />
+                <span>Arquivados ({metrics.archivedCount})</span>
+              </Button>
+            )}
+          </div>
         </div>
       </GlassPanel>
     </div>

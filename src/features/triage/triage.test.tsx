@@ -13,12 +13,12 @@ import {
 describe('Triage Utilities & Calculations', () => {
   it('deve calcular corretamente as métricas dos 3 cards de topo e abas', () => {
     const metrics = computeMetrics(initialTriageCases);
-    expect(metrics.totalActive).toBe(6);
-    expect(metrics.inCollectionCount).toBe(2);
-    expect(metrics.readyForAnalysisCount).toBe(2);
-    expect(metrics.manualInterventionCount).toBe(2);
-    expect(metrics.leadsCount).toBe(2);
-    expect(metrics.ongoingCount).toBe(4);
+    expect(metrics.totalActive).toBe(21);
+    expect(metrics.inCollectionCount).toBe(7);
+    expect(metrics.readyForAnalysisCount).toBe(7);
+    expect(metrics.manualInterventionCount).toBe(7);
+    expect(metrics.leadsCount).toBe(9);
+    expect(metrics.ongoingCount).toBe(12);
   });
 
   it('deve formatar telefones, resumir número CNJ e gerar URL do WhatsApp', () => {
@@ -44,7 +44,7 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     vi.spyOn(window, 'open').mockImplementation(() => null);
   });
 
-  it('deve renderizar o cabeçalho, os 3 cards de indicadores despoluídos e as 5 abas de filtro', () => {
+  it('deve renderizar o cabeçalho, os 3 cards indicadores e a barra em 2 níveis (4 abas + botão nova sessão)', () => {
     render(<TriageContainer />);
 
     expect(
@@ -53,36 +53,43 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
 
     // 3 Metric Cards (enxutos e sem poluição de texto)
     expect(screen.getByText('Em Coleta (Bot WhatsApp)')).toBeInTheDocument();
-    expect(screen.getByTestId('metric-in-collection')).toHaveTextContent('2');
+    expect(screen.getByTestId('metric-in-collection')).toHaveTextContent('7');
 
     expect(screen.getByText('Prontos para Análise')).toBeInTheDocument();
-    expect(screen.getByTestId('metric-ready-analysis')).toHaveTextContent('2');
+    expect(screen.getByTestId('metric-ready-analysis')).toHaveTextContent('7');
 
     expect(screen.getByText('Intervenção Manual Necessária')).toBeInTheDocument();
-    expect(screen.getByTestId('metric-manual-intervention')).toHaveTextContent('2');
+    expect(screen.getByTestId('metric-manual-intervention')).toHaveTextContent('7');
 
-    // 5 Filter Tabs
+    // Nível 1: 4 Status Tabs
     expect(screen.getByRole('tab', { name: /Todos/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: /Em Coleta \(Bot\)/i })
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('tab', { name: /Prontos p\/ Análise/i })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('tab', { name: /Intervenção Manual/i })
     ).toBeInTheDocument();
+
+    // Botão Nova Sessão no nível 1 da barra
     expect(
-      screen.getByRole('tab', { name: /Pré-processuais \(Leads\)/i })
+      screen.getByRole('button', { name: /Nova Sessão de Coleta/i })
     ).toBeInTheDocument();
+
+    // Nível 2: Seletor de Fase Processual
     expect(
-      screen.getByRole('tab', { name: /Em Andamento \(Processos\)/i })
+      screen.getByLabelText(/Filtrar por fase processual/i)
     ).toBeInTheDocument();
   });
 
   it('deve paginar os atendimentos e permitir navegar entre as páginas', () => {
     render(<TriageContainer />);
 
-    // Na página 1 de 2 (pageSize=5, total=6)
+    // Na página 1 de 5 (pageSize=5, total=21)
     expect(screen.getByText(/Página/i)).toBeInTheDocument();
-    expect(screen.getByText(/mostrando 1–5 de 6 atendimentos/i)).toBeInTheDocument();
+    expect(screen.getByText(/mostrando 1–5 de 21 atendimentos/i)).toBeInTheDocument();
 
     // Os 5 primeiros casos devem estar visíveis
     expect(screen.getByText('Maria de Lourdes Conceição')).toBeInTheDocument();
@@ -95,46 +102,47 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     const nextBtn = screen.getByRole('button', { name: /Próximo/i });
     fireEvent.click(nextBtn);
 
-    // Agora o 6º caso deve estar visível
+    // Agora o 6º caso deve estar visível na página 2
     expect(screen.getByText('Marcos Vinícius Peixoto')).toBeInTheDocument();
-    expect(screen.getByText(/mostrando 6–6 de 6 atendimentos/i)).toBeInTheDocument();
+    expect(screen.getByText(/mostrando 6–10 de 21 atendimentos/i)).toBeInTheDocument();
     expect(screen.queryByText('Maria de Lourdes Conceição')).not.toBeInTheDocument();
   });
 
-  it('deve filtrar os atendimentos pelas abas e pelo campo de busca rápida (nome, CPF ou CNJ)', () => {
+  it('deve filtrar pela nova aba "Em Coleta (Bot)" e pelo seletor de fase processual (Leads)', () => {
     render(<TriageContainer />);
 
-    // Filtrar por Pré-processuais (Leads) -> Maria de Lourdes e João Batista
+    // Clicar na nova aba 'Em Coleta (Bot)'
     fireEvent.click(
-      screen.getByRole('tab', { name: /Pré-processuais \(Leads\)/i })
+      screen.getByRole('tab', { name: /Em Coleta \(Bot\)/i })
     );
+
+    // Devem aparecer apenas João Batista e Marcos Vinícius (casos em coleta pelo bot)
+    expect(screen.getByText('João Batista Oliveira Filho')).toBeInTheDocument();
+    expect(screen.getByText('Marcos Vinícius Peixoto')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Maria de Lourdes Conceição')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Sebastião Ferreira dos Santos')
+    ).not.toBeInTheDocument();
+
+    // Voltar para Todos e filtrar por Pré-processuais (Leads) no dropdown
+    fireEvent.click(screen.getByRole('tab', { name: /Todos/i }));
+    const phaseSelect = screen.getByLabelText(/Filtrar por fase processual/i);
+    fireEvent.change(phaseSelect, { target: { value: 'leads' } });
+
     expect(screen.getByText('Maria de Lourdes Conceição')).toBeInTheDocument();
     expect(screen.getByText('João Batista Oliveira Filho')).toBeInTheDocument();
     expect(
       screen.queryByText('Sebastião Ferreira dos Santos')
     ).not.toBeInTheDocument();
-
-    // Voltar para Todos e buscar por número CNJ
-    fireEvent.click(screen.getByRole('tab', { name: /Todos/i }));
-    const searchInput = screen.getByPlaceholderText(
-      /Buscar por cliente, CPF ou nº do processo/i
-    );
-    fireEvent.change(searchInput, { target: { value: '5012849-73' } });
-
-    expect(screen.getByText('Sebastião Ferreira dos Santos')).toBeInTheDocument();
-    expect(
-      screen.queryByText('Maria de Lourdes Conceição')
-    ).not.toBeInTheDocument();
   });
 
-  it('deve abrir o Drawer lateral em Split-View ao clicar em uma linha ou no botão "Analisar", permitindo aprovar documento e upload manual', () => {
+  it('deve abrir o Drawer lateral ao clicar diretamente na linha e exibir o upload manual estruturado verticalmente', () => {
     render(<TriageContainer />);
 
-    // Clicar no botão 'Analisar' de Sebastião Ferreira
-    const analyzeButtons = screen.getAllByRole('button', {
-      name: /Ver Documentos & Análise/i,
-    });
-    fireEvent.click(analyzeButtons[1]); // Sebastião Ferreira
+    // Clicar na linha de Sebastião Ferreira
+    fireEvent.click(screen.getByText('Sebastião Ferreira dos Santos'));
 
     // Verifica que o Drawer abriu com o resumo do bot e o visualizador integrado
     expect(
@@ -144,7 +152,7 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
       screen.getByText(/Conferência Digital Diafanís/i)
     ).toBeInTheDocument();
 
-    // Verifica que a seção de Upload Manual está presente com o seletor estruturado
+    // Verifica que a seção de Upload Manual possui o seletor rotulado e o botão
     expect(
       screen.getByText(/Documento a regularizar \/ anexar:/i)
     ).toBeInTheDocument();
@@ -161,6 +169,21 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     expect(
       screen.getByText(/Documento aprovado e validado no checklist/i)
     ).toBeInTheDocument();
+  });
+
+  it('deve renderizar o menu de mais opções (3 pontinhos) e atalho do WhatsApp em cada linha da tabela', () => {
+    render(<TriageContainer />);
+
+    const menuButtons = screen.getAllByRole('button', {
+      name: /Mais opções do atendimento/i,
+    });
+    expect(menuButtons.length).toBeGreaterThanOrEqual(1);
+    expect(menuButtons[0]).toHaveAttribute('aria-haspopup', 'menu');
+
+    const whatsappButtons = screen.getAllByRole('button', {
+      name: /Assumir no WhatsApp/i,
+    });
+    expect(whatsappButtons.length).toBeGreaterThanOrEqual(1);
   });
 
   it('deve abrir o modal de reprovação com campo de texto livre ao clicar em "Solicitar Reenvio / Recusar"', () => {
@@ -220,7 +243,7 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
     ).toBeInTheDocument();
   });
 
-  it('deve pausar o bot e abrir o WhatsApp ao clicar em "Assumir no WhatsApp"', () => {
+  it('deve pausar o bot e abrir o WhatsApp ao clicar no atalho do WhatsApp', () => {
     render(<TriageContainer />);
 
     const takeoverButtons = screen.getAllByRole('button', {
