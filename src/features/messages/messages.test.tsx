@@ -57,7 +57,7 @@ describe('FloatingTabNav', () => {
 describe('NotificationListItem (Modelo Simples de Notificação no Grid)', () => {
   const sampleNotification: NotificationItem = initialNotifications[0];
 
-  it('deve exibir título, descrição, advogado atribuído, prazo e indicador de não lida', () => {
+  it('deve exibir título, descrição, advogado atribuído, prazo, indicador de não lida e Prazo Fatal quando isFatal for true', () => {
     render(<NotificationListItem item={sampleNotification} />);
 
     expect(screen.getByTestId('notification-unread-dot')).toBeInTheDocument();
@@ -65,6 +65,15 @@ describe('NotificationListItem (Modelo Simples de Notificação no Grid)', () =>
     expect(screen.getByText(sampleNotification.assignedLawyer)).toBeInTheDocument();
     expect(screen.getByText(sampleNotification.deadline)).toBeInTheDocument();
     expect(screen.getByText('Prazo Fatal')).toBeInTheDocument();
+  });
+
+  it('não deve exibir nenhuma legenda de status quando não for prazo fatal', () => {
+    const regularNotification: NotificationItem = initialNotifications[1];
+    render(<NotificationListItem item={regularNotification} />);
+
+    expect(screen.queryByText('Prazo Fatal')).not.toBeInTheDocument();
+    expect(screen.queryByText('Audiência')).not.toBeInTheDocument();
+    expect(screen.queryByText('Em Andamento')).not.toBeInTheDocument();
   });
 
   it('deve disparar onToggleRead ao clicar no botão de marcar como lida', () => {
