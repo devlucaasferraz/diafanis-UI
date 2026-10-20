@@ -454,7 +454,7 @@ export const TriageDrawer: React.FC<TriageDrawerProps> = ({
                         aria-label="Selecionar tipo de documento para upload manual"
                         value={uploadTargetDocId}
                         onChange={(e) => setUploadTargetDocId(e.target.value)}
-                        className="h-8.5 w-full rounded-xl border border-border/70 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="h-8 w-full rounded-lg border border-border/70 bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         {triageCase.documentos.map((d) => (
                           <option key={d.id} value={d.id}>
@@ -478,9 +478,9 @@ export const TriageDrawer: React.FC<TriageDrawerProps> = ({
                       variant="secondary"
                       size="sm"
                       onClick={handleSimulatedManualUpload}
-                      className="w-full justify-center gap-1.5 h-8.5 text-xs"
+                      className="flex items-center justify-center gap-1.5 w-full h-8 px-3 rounded-lg text-xs font-semibold shadow-sm hover:bg-secondary/90 transition-all cursor-pointer"
                     >
-                      <Upload className="size-3.5" />
+                      <Upload className="h-3.5 w-3.5" />
                       <span>Anexar arquivo manualmente</span>
                     </Button>
                   </div>

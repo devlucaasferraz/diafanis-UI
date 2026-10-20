@@ -14,6 +14,7 @@ import {
   buildWhatsAppUrl,
 } from './mock-data';
 import { TriageHeaderMetrics } from './TriageHeaderMetrics';
+import { TriageFilters } from './TriageFilters';
 import { TriageTable } from './TriageTable';
 import { TriageDrawer } from './TriageDrawer';
 import { TriagePagination } from './TriagePagination';
@@ -450,21 +451,14 @@ export const TriageContainer: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Cabeçalho, 3 Cards de Indicadores e Barra de Filtros em 2 Níveis */}
+      {/* 1. Cabeçalho e 3 Cards de Indicadores de Topo */}
       <TriageHeaderMetrics
         metrics={metrics}
         currentTab={currentTab}
         onTabChange={handleTabChange}
-        processFilter={processFilter}
-        onProcessFilterChange={handleProcessFilterChange}
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-        showArchived={showArchived}
-        onToggleShowArchived={handleToggleShowArchived}
-        onOpenNewTriageModal={() => setIsNewModalOpen(true)}
       />
 
-      {/* 2. Tabela Principal de Atendimentos Paginada */}
+      {/* 2. Caixa Única: Barra de Filtros + Tabela Principal + Paginação Integradas */}
       <TriageTable
         cases={paginatedCases}
         selectedCaseId={selectedCaseId}
@@ -472,6 +466,20 @@ export const TriageContainer: React.FC = () => {
         onTakeoverWhatsApp={handleTakeoverWhatsApp}
         onOpenLinkProcess={(c) => setLinkProcessTargetCase(c)}
         onCompleteTriage={handleCompleteTriage}
+        header={
+          <TriageFilters
+            metrics={metrics}
+            currentTab={currentTab}
+            onTabChange={handleTabChange}
+            processFilter={processFilter}
+            onProcessFilterChange={handleProcessFilterChange}
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            showArchived={showArchived}
+            onToggleShowArchived={handleToggleShowArchived}
+            onOpenNewTriageModal={() => setIsNewModalOpen(true)}
+          />
+        }
         footer={
           <TriagePagination
             currentPage={currentPage}

@@ -2,6 +2,7 @@ export * from './types';
 export * from './mock-data';
 export * from './TriageBadges';
 export * from './TriageHeaderMetrics';
+export * from './TriageFilters';
 export * from './TriageTable';
 export * from './TriagePagination';
 export * from './TriageDrawer';

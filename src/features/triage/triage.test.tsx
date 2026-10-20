@@ -325,4 +325,34 @@ describe('Central de Documentos & Triagem — Interface Completa', () => {
       within(table).getByText('Helena Vargas Silveira')
     ).toBeInTheDocument();
   });
+
+  it('deve exibir as colunas limpas (sem CPF/protocolo, vínculo em texto) e abrir o balão do checklist ao clicar no badge', () => {
+    render(<TriageContainer />);
+
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('Maria de Lourdes Conceição')).toBeInTheDocument();
+    expect(within(table).queryByText('(TRI-2026-001)')).not.toBeInTheDocument();
+
+    // Coluna Vínculo: Exibe 'Pré-processual' em texto limpo para casos sem processo
+    expect(within(table).getAllByText('Pré-processual').length).toBeGreaterThanOrEqual(1);
+
+    // Coluna Motivo: Exibe 'BPC/LOAS' em texto limpo sem a escrita 'Relatou dificuldade'
+    expect(within(table).getByText('BPC/LOAS')).toBeInTheDocument();
+    expect(within(table).queryByText(/Relatou dificuldade/i)).not.toBeInTheDocument();
+
+    // Coluna Checklist: Botão com contador compacto
+    const checklistBtns = screen.getAllByRole('button', {
+      name: /Checklist: 2 de 4 documentos aprovados/i,
+    });
+    expect(checklistBtns.length).toBeGreaterThanOrEqual(1);
+    const checklistBtn = checklistBtns[0];
+    expect(checklistBtn).toHaveTextContent('2/4 aprovados');
+    expect(checklistBtn).toHaveAttribute('aria-haspopup', 'menu');
+
+    // Clicar ou acionar Enter no botão abre o balão popover
+    fireEvent.pointerDown(checklistBtn);
+    fireEvent.keyDown(checklistBtn, { key: 'Enter' });
+    expect(screen.getAllByText('Checklist de Documentos').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Laudo Médico / CadÚnico')).toBeInTheDocument();
+  });
 });
