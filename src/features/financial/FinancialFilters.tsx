@@ -15,8 +15,8 @@ interface FinancialFiltersProps {
   };
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  feeTypeFilter: 'all' | FeeType;
-  onFeeTypeChange: (type: 'all' | FeeType) => void;
+  feeTypeFilter: 'all' | FeeType | string;
+  onFeeTypeChange: (type: 'all' | FeeType | string) => void;
   sortField: InvoiceSortField;
   sortOrder: SortOrder;
   onSortChange: (field: InvoiceSortField, order: SortOrder) => void;
@@ -40,9 +40,9 @@ export const FinancialFilters: React.FC<FinancialFiltersProps> = ({
 }) => {
   const tabs: { id: InvoiceFilterTab; label: string; count: number }[] = [
     { id: 'all', label: 'Todos', count: counts.all },
-    { id: 'paid', label: 'Pagos', count: counts.paid },
-    { id: 'pending', label: 'Pendentes', count: counts.pending },
-    { id: 'overdue', label: 'Vencidos', count: counts.overdue },
+    { id: 'PAGO', label: 'Pagos', count: counts.paid },
+    { id: 'PENDENTE', label: 'Pendentes', count: counts.pending },
+    { id: 'VENCIDO', label: 'Vencidos', count: counts.overdue },
   ];
 
   return (
@@ -86,7 +86,7 @@ export const FinancialFilters: React.FC<FinancialFiltersProps> = ({
 
       {/* Tabs and Search / Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-border/40 pb-3">
-        {/* Status Tabs matching Invoices.png */}
+        {/* Status Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 scrollbar-none shrink-0">
           {tabs.map((tab) => {
             const isActive = currentTab === tab.id;
@@ -127,7 +127,7 @@ export const FinancialFilters: React.FC<FinancialFiltersProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Buscar cliente ou processo..."
+              placeholder="Buscar descrição ou cliente..."
               className="w-full h-8 pl-7 pr-7 rounded-lg border border-border/70 bg-background text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
             />
             {searchQuery && (
@@ -150,8 +150,10 @@ export const FinancialFilters: React.FC<FinancialFiltersProps> = ({
             className="h-8 px-2 rounded-lg border border-border/70 bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shrink-0"
           >
             <option value="all">Tipos</option>
-            <option value="contractual">Contratual</option>
-            <option value="succumbential">Sucumbencial</option>
+            <option value="CONTRATUAL">Contratual</option>
+            <option value="SUCUMBENCIAL">Sucumbencial</option>
+            <option value="RECEITA">Receita</option>
+            <option value="DESPESA">Despesa</option>
           </select>
 
           {/* Sort selector */}
@@ -164,11 +166,11 @@ export const FinancialFilters: React.FC<FinancialFiltersProps> = ({
             }}
             className="h-8 px-2 rounded-lg border border-border/70 bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shrink-0"
           >
-            <option value="dueDate-desc">Mais recentes</option>
-            <option value="dueDate-asc">Mais antigos</option>
-            <option value="amount-desc">Maior valor</option>
-            <option value="amount-asc">Menor valor</option>
-            <option value="clientName-asc">Cliente (A-Z)</option>
+            <option value="data_vencimento-desc">Mais recentes</option>
+            <option value="data_vencimento-asc">Mais antigos</option>
+            <option value="valor-desc">Maior valor</option>
+            <option value="valor-asc">Menor valor</option>
+            <option value="descricao-asc">Descrição (A-Z)</option>
           </select>
         </div>
       </div>

@@ -10,6 +10,15 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://diafanis-api-239560742520.southamerica-east1.run.app',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
