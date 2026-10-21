@@ -1,100 +1,139 @@
 import * as React from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { Button } from '@/features/ui/button';
-import { FeeType, Invoice, InvoiceStatus } from './types';
+import { Cliente, FeeType, FaturaPayload, Invoice, InvoiceStatus } from './types';
 
 interface NewInvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (invoice: Omit<Invoice, 'id' | 'reference'>) => void;
-  nextReferenceCode?: string;
+  onSubmit: (payload: FaturaPayload) => Promise<void> | void;
+  clientes?: Cliente[];
+  invoiceToEdit?: Invoice | null;
 }
 
-const firmLawyers = [
-  { id: 'me', name: 'Dr. Alberto Queiroz' },
-  { id: 'pa', name: 'Dra. Patrícia Ávila' },
-  { id: 'hr', name: 'Dr. Himmad Rocha' },
-  { id: 'bv', name: 'Dr. Benson Varghese' },
-];
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  nextReferenceCode = 'HON-2026-013',
+  clientes = [],
+  invoiceToEdit = null,
 }) => {
-  const [clientName, setClientName] = React.useState('');
-  const [processNumber, setProcessNumber] = React.useState('');
-  const [feeType, setFeeType] = React.useState<FeeType>('contractual');
-  const [lawyerId, setLawyerId] = React.useState('me');
-  const [amount, setAmount] = React.useState('');
-  const [dueDate, setDueDate] = React.useState('');
-  const [status, setStatus] = React.useState<InvoiceStatus>('pending');
-  const [notes, setNotes] = React.useState('');
+  const [descricao, setDescricao] = React.useState('');
+  const [tipo, setTipo] = React.useState<FeeType | string>('CONTRATUAL');
+  const [valor, setValor] = React.useState('');
+  const [dataVencimento, setDataVencimento] = React.useState('');
+  const [status, setStatus] = React.useState<InvoiceStatus>('PENDENTE');
+  const [dataPagamento, setDataPagamento] = React.useState('');
+  const [cliente, setCliente] = React.useState('');
+  const [processo, setProcesso] = React.useState('');
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // Reset form on open
+  const isEditing = Boolean(invoiceToEdit);
+
+  // Reset or populate form on open
   React.useEffect(() => {
     if (isOpen) {
-      setClientName('');
-      setProcessNumber('');
-      setFeeType('contractual');
-      setLawyerId('me');
-      setAmount('');
-      setDueDate(new Date().toISOString().split('T')[0]);
-      setStatus('pending');
-      setNotes('');
+      if (invoiceToEdit) {
+        setDescricao(invoiceToEdit.descricao || '');
+        setTipo(invoiceToEdit.tipo || 'CONTRATUAL');
+        setValor(String(invoiceToEdit.valor));
+        setDataVencimento(invoiceToEdit.data_vencimento || '');
+        setStatus(invoiceToEdit.status || 'PENDENTE');
+        setDataPagamento(invoiceToEdit.data_pagamento || '');
+        setCliente(invoiceToEdit.cliente || '');
+        setProcesso(invoiceToEdit.processo || '');
+      } else {
+        const today = new Date().toISOString().split('T')[0];
+        setDescricao('');
+        setTipo('CONTRATUAL');
+        setValor('');
+        setDataVencimento(today);
+        setStatus('PENDENTE');
+        setDataPagamento('');
+        setCliente('');
+        setProcesso('');
+      }
       setErrors({});
+      setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [isOpen, invoiceToEdit]);
 
   // Handle escape key
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !isSubmitting) onClose();
     };
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isSubmitting]);
 
   if (!isOpen) return null;
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!clientName.trim()) errs.clientName = 'Nome do cliente é obrigatório.';
-    if (!processNumber.trim()) errs.processNumber = 'Número do processo CNJ é obrigatório.';
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      errs.amount = 'Informe um valor válido maior que zero.';
+    if (!descricao.trim()) {
+      errs.descricao = 'A descrição da fatura é obrigatória.';
+    } else if (descricao.trim().length < 3) {
+      errs.descricao = 'A descrição da fatura deve conter pelo menos 3 caracteres.';
     }
-    if (!dueDate) errs.dueDate = 'Data de vencimento é obrigatória.';
+    if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) {
+      errs.valor = 'O valor da fatura deve ser maior que zero.';
+    }
+    if (!dataVencimento) {
+      errs.data_vencimento = 'Data de vencimento é obrigatória.';
+    }
+    if (!tipo.trim()) {
+      errs.tipo = 'Tipo da fatura é obrigatório.';
+    }
+    if ((status === 'PENDENTE' || status === 'VENCIDO') && dataPagamento) {
+      errs.data_pagamento =
+        'Faturas com status PENDENTE ou VENCIDO não devem possuir data de pagamento.';
+    }
+    if (cliente.trim() && !UUID_REGEX.test(cliente.trim())) {
+      errs.cliente = 'ID do cliente deve ser um UUID válido.';
+    }
+    if (processo.trim() && !UUID_REGEX.test(processo.trim())) {
+      errs.processo = 'ID do processo deve ser um UUID válido.';
+    }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const selectedLawyer = firmLawyers.find((l) => l.id === lawyerId);
+    const resolvedPaidDate =
+      status === 'PAGO' ? dataPagamento || dataVencimento : dataPagamento || null;
 
-    onSubmit({
-      clientName: clientName.trim(),
-      processNumber: processNumber.trim(),
-      feeType,
-      lawyerName: selectedLawyer?.name || 'Dr. Alberto Queiroz',
-      lawyerId,
-      amount: Number(amount),
-      dueDate,
-      paidDate: status === 'paid' ? dueDate : undefined,
+    const payload: FaturaPayload = {
+      cliente: cliente.trim() ? cliente.trim() : null,
+      processo: processo.trim() ? processo.trim() : null,
+      descricao: descricao.trim(),
+      valor: Number(valor),
+      tipo: tipo.trim(),
       status,
-      hasDocument: false,
-      notes: notes.trim() || undefined,
-    });
+      data_vencimento: dataVencimento,
+      data_pagamento: resolvedPaidDate,
+    };
 
-    onClose();
+    try {
+      setIsSubmitting(true);
+      await onSubmit(payload);
+      onClose();
+    } catch (err) {
+      setErrors({
+        submit: err instanceof Error ? err.message : 'Erro ao salvar fatura na API.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -109,10 +148,12 @@ export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-muted/10">
           <div className="flex flex-col gap-0.5">
             <h2 id="new-invoice-title" className="text-base font-bold font-headline text-foreground">
-              Cadastrar Honorário
+              {isEditing ? 'Editar Honorário' : 'Cadastrar Honorário'}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Referência gerada: <span className="font-mono font-semibold text-foreground">{nextReferenceCode}</span>
+              {isEditing
+                ? `Atualizando registro ${invoiceToEdit?.id.slice(0, 8).toUpperCase()}`
+                : 'Preencha os dados da fatura conforme o modelo da API'}
             </p>
           </div>
 
@@ -129,86 +170,53 @@ export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
-          {/* Cliente */}
+          {errors.submit && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 text-xs">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{errors.submit}</span>
+            </div>
+          )}
+
+          {/* Descrição */}
           <div className="space-y-1.5">
-            <label htmlFor="client-name" className="font-semibold text-foreground">
-              Cliente ou Requerente *
+            <label htmlFor="invoice-descricao" className="font-semibold text-foreground">
+              Descrição *
             </label>
             <input
-              id="client-name"
+              id="invoice-descricao"
               type="text"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              placeholder="Ex: Cooperativa Agrícola de Petrolina"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Ex: Honorários advocatícios iniciais"
               className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
             />
-            {errors.clientName && (
+            {errors.descricao && (
               <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
                 <AlertCircle className="h-3 w-3 shrink-0" />
-                <span>{errors.clientName}</span>
+                <span>{errors.descricao}</span>
               </p>
             )}
           </div>
 
-          {/* Processo CNJ e Tipo */}
+          {/* Tipo e Valor (R$) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label htmlFor="process-number" className="font-semibold text-foreground">
-                Processo CNJ *
-              </label>
-              <input
-                id="process-number"
-                type="text"
-                value={processNumber}
-                onChange={(e) => setProcessNumber(e.target.value)}
-                placeholder="0000000-00.0000.8.00.0000"
-                className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background font-mono text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-              />
-              {errors.processNumber && (
-                <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
-                  <AlertCircle className="h-3 w-3 shrink-0" />
-                  <span>{errors.processNumber}</span>
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
               <label htmlFor="fee-type" className="font-semibold text-foreground">
-                Tipo de Honorário *
+                Tipo *
               </label>
               <select
                 id="fee-type"
-                value={feeType}
-                onChange={(e) => setFeeType(e.target.value as FeeType)}
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as FeeType)}
                 className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
-                <option value="contractual">Honorários Contratuais</option>
-                <option value="succumbential">Honorários Sucumbenciais</option>
+                <option value="CONTRATUAL">Honorários Contratuais</option>
+                <option value="SUCUMBENCIAL">Honorários Sucumbenciais</option>
+                <option value="RECEITA">Receita</option>
+                <option value="DESPESA">Despesa</option>
               </select>
             </div>
-          </div>
 
-          {/* Advogado Responsável */}
-          <div className="space-y-1.5">
-            <label htmlFor="lawyer" className="font-semibold text-foreground">
-              Advogado Responsável *
-            </label>
-            <select
-              id="lawyer"
-              value={lawyerId}
-              onChange={(e) => setLawyerId(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-            >
-              {firmLawyers.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Valor (R$) e Data de Vencimento */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label htmlFor="amount" className="font-semibold text-foreground">
                 Valor (R$) *
@@ -217,20 +225,22 @@ export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
                 id="amount"
                 type="number"
                 step="0.01"
-                min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Ex: 5000.00"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                placeholder="Ex: 1500.00"
                 className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
-              {errors.amount && (
+              {errors.valor && (
                 <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3 w-3 shrink-0" />
-                  <span>{errors.amount}</span>
+                  <span>{errors.valor}</span>
                 </p>
               )}
             </div>
+          </div>
 
+          {/* Data de Vencimento e Data de Pagamento */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label htmlFor="due-date" className="font-semibold text-foreground">
                 Data de Vencimento *
@@ -238,32 +248,99 @@ export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
               <input
                 id="due-date"
                 type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                value={dataVencimento}
+                onChange={(e) => setDataVencimento(e.target.value)}
                 className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               />
-              {errors.dueDate && (
+              {errors.data_vencimento && (
                 <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3 w-3 shrink-0" />
-                  <span>{errors.dueDate}</span>
+                  <span>{errors.data_vencimento}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="paid-date" className="font-semibold text-foreground">
+                Data de Pagamento (Opcional)
+              </label>
+              <input
+                id="paid-date"
+                type="date"
+                value={dataPagamento}
+                onChange={(e) => setDataPagamento(e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              />
+              {errors.data_pagamento && (
+                <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{errors.data_pagamento}</span>
                 </p>
               )}
             </div>
           </div>
 
-          {/* Status Inicial */}
+          {/* Cliente e Processo (FKs opcionais do model Fatura) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label htmlFor="client-select" className="font-semibold text-foreground">
+                Cliente (Opcional)
+              </label>
+              <select
+                id="client-select"
+                value={cliente}
+                onChange={(e) => setCliente(e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="">Sem cliente vinculado</option>
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+              {errors.cliente && (
+                <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{errors.cliente}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="process-id" className="font-semibold text-foreground">
+                Processo ID (Opcional)
+              </label>
+              <input
+                id="process-id"
+                type="text"
+                value={processo}
+                onChange={(e) => setProcesso(e.target.value)}
+                placeholder="UUID do processo (opcional)"
+                className="w-full h-9 px-3 rounded-lg border border-border/70 bg-background font-mono text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+              />
+              {errors.processo && (
+                <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{errors.processo}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Status */}
           <div className="space-y-1.5">
             <label className="font-semibold text-foreground block">
-              Status Inicial da Cobrança *
+              Status da Fatura *
             </label>
-            <div className="flex items-center gap-4 pt-1">
+            <div className="flex flex-wrap items-center gap-4 pt-1">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name="status"
-                  value="pending"
-                  checked={status === 'pending'}
-                  onChange={() => setStatus('pending')}
+                  value="PENDENTE"
+                  checked={status === 'PENDENTE'}
+                  onChange={() => setStatus('PENDENTE')}
                   className="accent-primary"
                 />
                 <span className="text-foreground">Pendente (A receber)</span>
@@ -272,29 +349,30 @@ export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
                 <input
                   type="radio"
                   name="status"
-                  value="paid"
-                  checked={status === 'paid'}
-                  onChange={() => setStatus('paid')}
+                  value="PAGO"
+                  checked={status === 'PAGO'}
+                  onChange={() => {
+                    setStatus('PAGO');
+                    if (!dataPagamento) {
+                      setDataPagamento(new Date().toISOString().split('T')[0]);
+                    }
+                  }}
                   className="accent-primary"
                 />
-                <span className="text-foreground">Já liquidado (Pago)</span>
+                <span className="text-foreground">Pago (Liquidado)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="VENCIDO"
+                  checked={status === 'VENCIDO'}
+                  onChange={() => setStatus('VENCIDO')}
+                  className="accent-primary"
+                />
+                <span className="text-foreground">Vencido</span>
               </label>
             </div>
-          </div>
-
-          {/* Observações */}
-          <div className="space-y-1.5">
-            <label htmlFor="notes" className="font-semibold text-foreground">
-              Observações ou Detalhes (Opcional)
-            </label>
-            <textarea
-              id="notes"
-              rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex: Parcela referente à sentença em 1ª instância."
-              className="w-full p-2.5 rounded-lg border border-border/70 bg-background text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none"
-            />
           </div>
 
           {/* Footer Actions */}
@@ -303,6 +381,7 @@ export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
               type="button"
               variant="outline"
               size="sm"
+              disabled={isSubmitting}
               onClick={onClose}
               className="px-4 text-xs text-muted-foreground hover:text-foreground"
             >
@@ -312,9 +391,14 @@ export const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({
               type="submit"
               variant="default"
               size="sm"
+              disabled={isSubmitting}
               className="px-4 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
             >
-              Cadastrar Honorário
+              {isSubmitting
+                ? 'Salvando...'
+                : isEditing
+                ? 'Salvar Alterações'
+                : 'Cadastrar Honorário'}
             </Button>
           </div>
         </form>

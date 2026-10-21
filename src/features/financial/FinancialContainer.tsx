@@ -5,64 +5,115 @@ import { FinancialTable } from './FinancialTable';
 import { FinancialPagination } from './FinancialPagination';
 import { NewInvoiceModal } from './NewInvoiceModal';
 import { InvoiceDetailsModal } from './InvoiceDetailsModal';
-import { initialInvoices, calculateSummary } from './mock-data';
 import {
+  listarFaturas,
+  listarClientes,
+  criarFatura,
+  atualizarFatura,
+  deletarFatura,
+  obterFaturaPorId,
+} from './api';
+import {
+  Cliente,
+  FaturaPayload,
   Invoice,
   InvoiceFilterTab,
   FeeType,
   InvoiceSortField,
   SortOrder,
 } from './types';
+import { calculateSummary, formatFeeTypeLabel } from './utils';
 import { GlassPanel } from '@/features/ui/glass-panel';
-import { CheckCircle2, X } from 'lucide-react';
+import { CheckCircle2, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/features/ui/button';
 
 export const FinancialContainer: React.FC = () => {
-  const [invoices, setInvoices] = React.useState<Invoice[]>(initialInvoices);
+  const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+  const [clientes, setClientes] = React.useState<Cliente[]>([]);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [apiError, setApiError] = React.useState<string | null>(null);
+
   const [currentTab, setCurrentTab] = React.useState<InvoiceFilterTab>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [feeTypeFilter, setFeeTypeFilter] = React.useState<'all' | FeeType>('all');
-  const [sortField, setSortField] = React.useState<InvoiceSortField>('dueDate');
+  const [feeTypeFilter, setFeeTypeFilter] = React.useState<'all' | FeeType | string>('all');
+  const [sortField, setSortField] = React.useState<InvoiceSortField>('data_vencimento');
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('desc');
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [isNewModalOpen, setIsNewModalOpen] = React.useState(false);
-  const [selectedInvoiceForDetails, setSelectedInvoiceForDetails] = React.useState<Invoice | null>(null);
+
+  const [isFormModalOpen, setIsFormModalOpen] = React.useState(false);
+  const [invoiceToEdit, setInvoiceToEdit] = React.useState<Invoice | null>(null);
+  const [selectedInvoiceForDetails, setSelectedInvoiceForDetails] =
+    React.useState<Invoice | null>(null);
 
   const pageSize = 10;
+
+  const clientesMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of clientes) {
+      map[c.id] = c.nome;
+    }
+    return map;
+  }, [clientes]);
+
+  const loadData = React.useCallback(async () => {
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      let fetchedClientes: Cliente[] = [];
+      try {
+        fetchedClientes = await listarClientes();
+        setClientes(fetchedClientes);
+      } catch {
+        // Segue carregando faturas mesmo se a listagem de clientes falhar
+      }
+
+      const map: Record<string, string> = {};
+      for (const c of fetchedClientes) {
+        map[c.id] = c.nome;
+      }
+
+      const fetchedFaturas = await listarFaturas(map);
+      setInvoices(fetchedFaturas);
+    } catch (err) {
+      setApiError(
+        err instanceof Error ? err.message : 'Não foi possível carregar as faturas da API.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Filter and sort invoices
   const filteredInvoices = React.useMemo(() => {
     return invoices
       .filter((inv) => {
-        // Tab filter
         if (currentTab !== 'all' && inv.status !== currentTab) return false;
+        if (feeTypeFilter !== 'all' && inv.tipo !== feeTypeFilter) return false;
 
-        // Fee type filter
-        if (feeTypeFilter !== 'all' && inv.feeType !== feeTypeFilter) return false;
-
-        // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
-          const matchClient = inv.clientName.toLowerCase().includes(q);
-          const matchProcess = inv.processNumber.toLowerCase().includes(q);
-          const matchRef = inv.reference.toLowerCase().includes(q);
-          const matchLawyer = inv.lawyerName.toLowerCase().includes(q);
-          if (!matchClient && !matchProcess && !matchRef && !matchLawyer) return false;
+          const matchDesc = (inv.descricao || '').toLowerCase().includes(q);
+          const matchClient = (inv.clienteNome || inv.cliente || '').toLowerCase().includes(q);
+          const matchProcess = (inv.processo || '').toLowerCase().includes(q);
+          const matchId = inv.id.toLowerCase().includes(q);
+          if (!matchDesc && !matchClient && !matchProcess && !matchId) return false;
         }
 
         return true;
       })
       .sort((a, b) => {
         let compare = 0;
-        if (sortField === 'dueDate') {
-          compare = a.dueDate.localeCompare(b.dueDate);
-        } else if (sortField === 'amount') {
-          compare = a.amount - b.amount;
-        } else if (sortField === 'clientName') {
-          compare = a.clientName.localeCompare(b.clientName);
-        } else if (sortField === 'reference') {
-          compare = a.reference.localeCompare(b.reference);
+        if (sortField === 'data_vencimento') {
+          compare = a.data_vencimento.localeCompare(b.data_vencimento);
+        } else if (sortField === 'valor') {
+          compare = a.valor - b.valor;
+        } else if (sortField === 'descricao') {
+          compare = (a.descricao || '').localeCompare(b.descricao || '');
         }
         return sortOrder === 'desc' ? -compare : compare;
       });
@@ -102,99 +153,117 @@ export const FinancialContainer: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = (id: string) => {
-    setInvoices((prev) =>
-      prev.map((inv) => {
-        if (inv.id !== id) return inv;
-        const newStatus = inv.status === 'paid' ? 'pending' : 'paid';
-        return {
-          ...inv,
-          status: newStatus,
-          paidDate: newStatus === 'paid' ? '2026-10-15' : undefined,
-        };
-      })
-    );
-    if (selectedInvoiceForDetails && selectedInvoiceForDetails.id === id) {
-      setSelectedInvoiceForDetails((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: prev.status === 'paid' ? 'pending' : 'paid',
-              paidDate: prev.status !== 'paid' ? '2026-10-15' : undefined,
-            }
-          : null
+  const handleToggleStatus = async (id: string) => {
+    const target = invoices.find((inv) => inv.id === id);
+    if (!target) return;
+
+    const newStatus = target.status === 'PAGO' ? 'PENDENTE' : 'PAGO';
+    const newPaidDate =
+      newStatus === 'PAGO' ? new Date().toISOString().split('T')[0] : null;
+
+    setApiError(null);
+    try {
+      const updated = await atualizarFatura(
+        id,
+        { status: newStatus, data_pagamento: newPaidDate },
+        clientesMap
+      );
+      setInvoices((prev) => prev.map((inv) => (inv.id === id ? updated : inv)));
+      if (selectedInvoiceForDetails?.id === id) {
+        setSelectedInvoiceForDetails(updated);
+      }
+    } catch (err) {
+      setApiError(
+        err instanceof Error ? err.message : 'Erro ao atualizar o status da fatura.'
       );
     }
   };
 
-  const handleRegisterPayment = (
+  const handleRegisterPayment = async (
     id: string,
-    paymentData: { paidDate: string; receiptName?: string }
+    paymentData: { data_pagamento: string }
   ) => {
-    setInvoices((prev) =>
-      prev.map((inv) => {
-        if (inv.id !== id) return inv;
-        return {
-          ...inv,
-          status: 'paid',
-          paidDate: paymentData.paidDate,
-          hasDocument: Boolean(paymentData.receiptName || inv.hasDocument),
-          documentName: paymentData.receiptName || inv.documentName,
-        };
-      })
-    );
-    setSelectedInvoiceForDetails((prev) =>
-      prev && prev.id === id
-        ? {
-            ...prev,
-            status: 'paid',
-            paidDate: paymentData.paidDate,
-            hasDocument: Boolean(paymentData.receiptName || prev.hasDocument),
-            documentName: paymentData.receiptName || prev.documentName,
-          }
-        : null
-    );
+    setApiError(null);
+    try {
+      const updated = await atualizarFatura(
+        id,
+        { status: 'PAGO', data_pagamento: paymentData.data_pagamento },
+        clientesMap
+      );
+      setInvoices((prev) => prev.map((inv) => (inv.id === id ? updated : inv)));
+      setSelectedInvoiceForDetails((prev) => (prev && prev.id === id ? updated : prev));
+    } catch (err) {
+      setApiError(
+        err instanceof Error ? err.message : 'Erro ao registrar o pagamento da fatura.'
+      );
+    }
   };
 
-  const handleRemoveReceipt = (id: string) => {
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === id ? { ...inv, hasDocument: false, documentName: undefined } : inv
-      )
-    );
-    setSelectedInvoiceForDetails((prev) =>
-      prev && prev.id === id
-        ? { ...prev, hasDocument: false, documentName: undefined }
-        : null
-    );
+  const handleDeleteInvoice = async (id: string) => {
+    setApiError(null);
+    try {
+      await deletarFatura(id);
+      setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+      if (selectedInvoiceForDetails?.id === id) {
+        setSelectedInvoiceForDetails(null);
+      }
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Erro ao excluir a fatura.');
+    }
   };
 
-  const handleDeleteInvoice = (id: string) => {
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
-    setSelectedIds((prev) => prev.filter((item) => item !== id));
+  const handleMarkSelectedAsPaid = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    setApiError(null);
+    try {
+      const updatedItems = await Promise.all(
+        selectedIds.map((id) =>
+          atualizarFatura(id, { status: 'PAGO', data_pagamento: today }, clientesMap)
+        )
+      );
+      const updatedById = new Map(updatedItems.map((item) => [item.id, item]));
+      setInvoices((prev) => prev.map((inv) => updatedById.get(inv.id) || inv));
+      setSelectedIds([]);
+    } catch (err) {
+      setApiError(
+        err instanceof Error ? err.message : 'Erro ao atualizar faturas selecionadas.'
+      );
+    }
   };
 
-  const handleMarkSelectedAsPaid = () => {
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        selectedIds.includes(inv.id)
-          ? { ...inv, status: 'paid', paidDate: '2026-10-15' }
-          : inv
-      )
-    );
-    setSelectedIds([]);
+  const handleViewInvoiceDetails = async (inv: Invoice) => {
+    setSelectedInvoiceForDetails(inv);
+    try {
+      const fresh = await obterFaturaPorId(inv.id, clientesMap);
+      setInvoices((prev) => prev.map((item) => (item.id === fresh.id ? fresh : item)));
+      setSelectedInvoiceForDetails((prev) => (prev && prev.id === fresh.id ? fresh : prev));
+    } catch {
+      // Mantém os dados locais já carregados caso a busca individual falhe
+    }
   };
 
   const handleExportCSV = () => {
-    const headers = ['Código', 'Cliente', 'Processo CNJ', 'Tipo', 'Advogado', 'Valor', 'Vencimento', 'Status'];
+    const headers = [
+      'ID',
+      'Descrição',
+      'Cliente',
+      'Processo',
+      'Tipo',
+      'Valor',
+      'Vencimento',
+      'Pagamento',
+      'Status',
+    ];
     const rows = filteredInvoices.map((inv) => [
-      inv.reference,
-      `"${inv.clientName.replace(/"/g, '""')}"`,
-      inv.processNumber,
-      inv.feeType === 'contractual' ? 'Contratual' : 'Sucumbencial',
-      `"${inv.lawyerName}"`,
-      inv.amount.toFixed(2),
-      inv.dueDate,
+      inv.id,
+      `"${(inv.descricao || '').replace(/"/g, '""')}"`,
+      `"${(inv.clienteNome || inv.cliente || '').replace(/"/g, '""')}"`,
+      inv.processo || '',
+      formatFeeTypeLabel(inv.tipo),
+      inv.valor.toFixed(2),
+      inv.data_vencimento,
+      inv.data_pagamento || '',
       inv.status,
     ]);
 
@@ -203,33 +272,77 @@ export const FinancialContainer: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `honorarios-diafanis-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute(
+      'download',
+      `honorarios-diafanis-${new Date().toISOString().split('T')[0]}.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const handleAddNewInvoice = (newFee: Omit<Invoice, 'id' | 'reference'>) => {
-    const newInvoice: Invoice = {
-      ...newFee,
-      id: `inv-${Date.now()}`,
-      reference: `HON-2026-${String(invoices.length + 1).padStart(3, '0')}`,
-    };
-    setInvoices((prev) => [newInvoice, ...prev]);
-    setCurrentPage(1);
+  const handleSaveInvoice = async (payload: FaturaPayload) => {
+    setApiError(null);
+    if (invoiceToEdit) {
+      const updated = await atualizarFatura(invoiceToEdit.id, payload, clientesMap);
+      setInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
+      if (selectedInvoiceForDetails?.id === updated.id) {
+        setSelectedInvoiceForDetails(updated);
+      }
+      setInvoiceToEdit(null);
+    } else {
+      const created = await criarFatura(payload, clientesMap);
+      setInvoices((prev) => [created, ...prev]);
+      setCurrentPage(1);
+    }
   };
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">
-          Gestão Financeira
-        </h1>
-        <p className="text-xs text-muted-foreground">
-          Acompanhamento de fluxo de caixa, honorários contratuais e sucumbenciais da banca.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">
+            Gestão Financeira
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Acompanhamento de fluxo de caixa, honorários contratuais e sucumbenciais da banca.
+          </p>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadData}
+          disabled={isLoading}
+          className="h-8 text-xs gap-1.5 self-start sm:self-auto text-muted-foreground hover:text-foreground"
+          title="Recarregar faturas da API"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          <span>Atualizar</span>
+        </Button>
       </div>
+
+      {/* API Error Banner */}
+      {apiError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between p-3.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{apiError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setApiError(null)}
+            className="p-1 hover:bg-destructive/10 rounded"
+            aria-label="Fechar alerta de erro"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Visão de Fluxo / RF13 */}
       <FinancialSummary summary={summary} />
@@ -240,7 +353,8 @@ export const FinancialContainer: React.FC = () => {
         {selectedIds.length > 0 && (
           <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs animate-in fade-in">
             <span className="font-medium text-foreground">
-              {selectedIds.length} {selectedIds.length === 1 ? 'cobrança selecionada' : 'cobranças selecionadas'}
+              {selectedIds.length}{' '}
+              {selectedIds.length === 1 ? 'cobrança selecionada' : 'cobranças selecionadas'}
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -287,19 +401,33 @@ export const FinancialContainer: React.FC = () => {
             setSortField(field);
             setSortOrder(order);
           }}
-          onNewInvoice={() => setIsNewModalOpen(true)}
+          onNewInvoice={() => {
+            setInvoiceToEdit(null);
+            setIsFormModalOpen(true);
+          }}
           onExport={handleExportCSV}
         />
 
-        <FinancialTable
-          invoices={paginatedInvoices}
-          selectedIds={selectedIds}
-          onToggleSelect={handleToggleSelect}
-          onSelectAll={handleSelectAll}
-          onToggleStatus={handleToggleStatus}
-          onDeleteInvoice={handleDeleteInvoice}
-          onViewInvoiceDetails={(inv) => setSelectedInvoiceForDetails(inv)}
-        />
+        {isLoading ? (
+          <div className="h-[565px] min-h-[565px] flex flex-col items-center justify-center text-center px-4">
+            <RefreshCw className="h-6 w-6 animate-spin text-primary mb-2" />
+            <p className="text-xs text-muted-foreground">Carregando faturas da API...</p>
+          </div>
+        ) : (
+          <FinancialTable
+            invoices={paginatedInvoices}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onSelectAll={handleSelectAll}
+            onToggleStatus={handleToggleStatus}
+            onDeleteInvoice={handleDeleteInvoice}
+            onViewInvoiceDetails={handleViewInvoiceDetails}
+            onEditInvoice={(inv) => {
+              setInvoiceToEdit(inv);
+              setIsFormModalOpen(true);
+            }}
+          />
+        )}
 
         <FinancialPagination
           currentPage={currentPage}
@@ -310,12 +438,16 @@ export const FinancialContainer: React.FC = () => {
         />
       </GlassPanel>
 
-      {/* Modal: Cadastro de Novo Honorário (RF12) */}
+      {/* Modal: Cadastro / Edição de Honorário (RF12) */}
       <NewInvoiceModal
-        isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
-        nextReferenceCode={`HON-2026-${String(invoices.length + 1).padStart(3, '0')}`}
-        onSubmit={handleAddNewInvoice}
+        isOpen={isFormModalOpen}
+        onClose={() => {
+          setIsFormModalOpen(false);
+          setInvoiceToEdit(null);
+        }}
+        clientes={clientes}
+        invoiceToEdit={invoiceToEdit}
+        onSubmit={handleSaveInvoice}
       />
 
       {/* Modal: Detalhes do Honorário */}
@@ -325,7 +457,10 @@ export const FinancialContainer: React.FC = () => {
         onClose={() => setSelectedInvoiceForDetails(null)}
         onToggleStatus={handleToggleStatus}
         onRegisterPayment={handleRegisterPayment}
-        onRemoveReceipt={handleRemoveReceipt}
+        onEditInvoice={(inv) => {
+          setInvoiceToEdit(inv);
+          setIsFormModalOpen(true);
+        }}
       />
     </div>
   );

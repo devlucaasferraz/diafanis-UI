@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { Invoice } from './types';
-import { FinancialStatusBadge } from './FinancialBadge';
-import { DocumentReceiptBadge } from './DocumentReceiptBadge';
-import { formatCurrency, formatDateBR } from './utils';
+import { FinancialStatusBadge, FeeTypeBadge } from './FinancialBadge';
+import { formatCurrency, formatDateBR, formatShortId } from './utils';
 import { Checkbox } from '@/features/ui/checkbox';
 import {
   DropdownMenu,
@@ -17,7 +16,7 @@ import {
   Clock,
   Trash2,
   Eye,
-  Download,
+  Pencil,
   Inbox,
 } from 'lucide-react';
 import { cn } from '@/shared/cn';
@@ -30,6 +29,7 @@ interface FinancialTableProps {
   onToggleStatus: (id: string) => void;
   onDeleteInvoice: (id: string) => void;
   onViewInvoiceDetails: (invoice: Invoice) => void;
+  onEditInvoice?: (invoice: Invoice) => void;
 }
 
 export const FinancialTable: React.FC<FinancialTableProps> = ({
@@ -40,6 +40,7 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
   onToggleStatus,
   onDeleteInvoice,
   onViewInvoiceDetails,
+  onEditInvoice,
 }) => {
   const allSelected =
     invoices.length > 0 && invoices.every((inv) => selectedIds.includes(inv.id));
@@ -74,26 +75,29 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
                 aria-label="Selecionar todas as cobranças"
               />
             </th>
-            <th scope="col" className="w-[110px] py-2.5 px-2 font-semibold whitespace-nowrap">
-              Código
+            <th scope="col" className="w-[95px] py-2.5 px-2 font-semibold whitespace-nowrap">
+              ID
             </th>
-            <th scope="col" className="min-w-[170px] py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="min-w-[200px] py-2.5 px-2 font-semibold whitespace-nowrap">
+              Descrição
+            </th>
+            <th scope="col" className="min-w-[150px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Cliente
             </th>
-            <th scope="col" className="w-[185px] py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[115px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Processo
             </th>
-            <th scope="col" className="w-[130px] py-2.5 px-2 font-semibold whitespace-nowrap">
-              Advogado
+            <th scope="col" className="w-[110px] py-2.5 px-2 font-semibold whitespace-nowrap">
+              Tipo
             </th>
-            <th scope="col" className="w-[95px] py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[105px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Valor
             </th>
-            <th scope="col" className="w-[90px] py-2.5 px-2 font-semibold whitespace-nowrap">
+            <th scope="col" className="w-[95px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Vencimento
             </th>
-            <th scope="col" className="w-[125px] py-2.5 px-2 font-semibold whitespace-nowrap">
-              Recibo
+            <th scope="col" className="w-[95px] py-2.5 px-2 font-semibold whitespace-nowrap">
+              Pagamento
             </th>
             <th scope="col" className="w-[105px] py-2.5 px-2 font-semibold whitespace-nowrap">
               Status
@@ -106,6 +110,10 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
         <tbody className="divide-y divide-border/30">
           {invoices.map((inv) => {
             const isSelected = selectedIds.includes(inv.id);
+            const shortId = formatShortId(inv.id);
+            const clientDisplay =
+              inv.clienteNome || (inv.cliente ? formatShortId(inv.cliente) : '-');
+            const processDisplay = inv.processo ? formatShortId(inv.processo) : '-';
 
             return (
               <tr
@@ -120,54 +128,65 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
                   <Checkbox
                     checked={isSelected}
                     onCheckedChange={() => onToggleSelect(inv.id)}
-                    aria-label={`Selecionar cobrança ${inv.reference}`}
+                    aria-label={`Selecionar cobrança ${shortId}`}
                   />
                 </td>
 
-                {/* Reference Code */}
+                {/* ID */}
                 <td className="py-2.5 px-2 font-semibold text-foreground whitespace-nowrap">
-                  <span className="font-mono text-xs">{inv.reference}</span>
+                  <span className="font-mono text-xs" title={inv.id}>
+                    {shortId}
+                  </span>
                 </td>
 
-                {/* Customer / Client */}
+                {/* Descrição */}
                 <td className="py-2.5 px-2 font-medium text-foreground whitespace-nowrap">
-                  <span className="block max-w-[180px] truncate" title={inv.clientName}>
-                    {inv.clientName}
+                  <span
+                    className="block max-w-[230px] truncate"
+                    title={inv.descricao || 'Sem descrição'}
+                  >
+                    {inv.descricao || 'Sem descrição'}
                   </span>
                 </td>
 
-                {/* Legal Docket / Process Number */}
+                {/* Cliente */}
+                <td className="py-2.5 px-2 text-muted-foreground whitespace-nowrap">
+                  <span
+                    className="block max-w-[160px] truncate"
+                    title={inv.clienteNome || inv.cliente || 'Sem cliente vinculado'}
+                  >
+                    {clientDisplay}
+                  </span>
+                </td>
+
+                {/* Processo */}
                 <td className="py-2.5 px-2 whitespace-nowrap">
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {inv.processNumber}
+                  <span
+                    className="font-mono text-xs text-muted-foreground"
+                    title={inv.processo || 'Sem processo vinculado'}
+                  >
+                    {processDisplay}
                   </span>
                 </td>
 
-                {/* Responsible Lawyer */}
-                <td className="py-2.5 px-2 text-muted-foreground whitespace-nowrap text-xs">
-                  {inv.lawyerName}
+                {/* Tipo */}
+                <td className="py-2.5 px-2 whitespace-nowrap">
+                  <FeeTypeBadge feeType={inv.tipo} />
                 </td>
 
-                {/* Amount (standardized to left-aligned like all other fields) */}
+                {/* Valor */}
                 <td className="py-2.5 px-2 font-semibold font-headline text-foreground whitespace-nowrap">
-                  {formatCurrency(inv.amount)}
+                  {formatCurrency(inv.valor)}
                 </td>
 
-                {/* Due Date */}
+                {/* Data de Vencimento */}
                 <td className="py-2.5 px-2 text-muted-foreground whitespace-nowrap text-xs">
-                  {formatDateBR(inv.dueDate)}
+                  {formatDateBR(inv.data_vencimento)}
                 </td>
 
-                {/* Document / Invoice Receipt */}
-                <td className="w-[125px] py-2.5 px-2 whitespace-nowrap">
-                  {inv.hasDocument && inv.documentName ? (
-                    <DocumentReceiptBadge
-                      documentName={inv.documentName}
-                      onClick={() => alert(`Baixando comprovante ${inv.documentName}`)}
-                    />
-                  ) : (
-                    <span className="text-muted-foreground/50 select-none pl-1">-</span>
-                  )}
+                {/* Data de Pagamento */}
+                <td className="py-2.5 px-2 text-muted-foreground whitespace-nowrap text-xs">
+                  {formatDateBR(inv.data_pagamento)}
                 </td>
 
                 {/* Status Badge */}
@@ -183,7 +202,7 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
                         type="button"
                         className="h-7 w-7 rounded-lg inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         title="Opções da cobrança"
-                        aria-label={`Opções da cobrança ${inv.reference}`}
+                        aria-label={`Opções da cobrança ${shortId}`}
                       >
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
@@ -197,11 +216,21 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
                         <span>Ver detalhes</span>
                       </DropdownMenuItem>
 
+                      {onEditInvoice && (
+                        <DropdownMenuItem
+                          onClick={() => onEditInvoice(inv)}
+                          className="gap-2"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>Editar fatura</span>
+                        </DropdownMenuItem>
+                      )}
+
                       <DropdownMenuItem
                         onClick={() => onToggleStatus(inv.id)}
                         className="gap-2"
                       >
-                        {inv.status === 'paid' ? (
+                        {inv.status === 'PAGO' ? (
                           <>
                             <Clock className="h-3.5 w-3.5 text-amber-500" />
                             <span>Marcar como Pendente</span>
@@ -213,16 +242,6 @@ export const FinancialTable: React.FC<FinancialTableProps> = ({
                           </>
                         )}
                       </DropdownMenuItem>
-
-                      {inv.hasDocument && (
-                        <DropdownMenuItem
-                          onClick={() => alert(`Baixando comprovante ${inv.documentName}`)}
-                          className="gap-2"
-                        >
-                          <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>Baixar comprovante</span>
-                        </DropdownMenuItem>
-                      )}
 
                       <DropdownMenuSeparator />
 
