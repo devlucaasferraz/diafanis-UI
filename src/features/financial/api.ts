@@ -21,7 +21,6 @@ function buildLegacyFallbackPath(path: string): string | null {
 
 async function fetchWithFallback(path: string, options?: RequestInit): Promise<Response> {
   const baseUrl = getApiBaseUrl();
-  const primaryUrl = `${baseUrl}${path}`;
 
   const executeFetch = async (urlPrefix: string): Promise<Response> => {
     const res = await fetch(`${urlPrefix}${path}`, options);
@@ -37,10 +36,29 @@ async function fetchWithFallback(path: string, options?: RequestInit): Promise<R
     return res;
   };
 
+  // No navegador (Vercel rewrites ou Vite dev proxy), prioriza a rota relativa (/api/...)
+  // para evitar bloqueios de CORS cross-origin caso o backend remoto ainda não envie os headers CORS.
+  const isBrowserWithProxy =
+    typeof window !== 'undefined' &&
+    (window.location.hostname.includes('vercel.app') ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1');
+
+  if (isBrowserWithProxy) {
+    try {
+      const proxyRes = await executeFetch('');
+      if (proxyRes.status !== 404) {
+        return proxyRes;
+      }
+    } catch {
+      // Se o proxy relativo não responder, tenta a URL direta configurada
+    }
+  }
+
   try {
     return await executeFetch(baseUrl);
   } catch (err) {
-    if (err instanceof TypeError && primaryUrl.startsWith('http')) {
+    if (!isBrowserWithProxy && err instanceof TypeError && baseUrl.startsWith('http')) {
       return await executeFetch('');
     }
     throw err;
