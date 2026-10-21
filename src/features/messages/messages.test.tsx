@@ -10,7 +10,7 @@ import { SendConfirmationModal } from './SendConfirmationModal';
 import { ScheduleDispatchModal } from './ScheduleDispatchModal';
 import { MessagesContainer } from './MessagesContainer';
 import { MessageItem, TemplateItem, ClientRecipient } from './types';
-import { allOfficeClients, availableLawsuits } from './mock-data';
+import { allOfficeClients, availableLawsuits, availableFinancials, availableHearingDates } from './mock-data';
 
 describe('FloatingTabNav', () => {
   it('deve renderizar as três abas principais: Notificações, Mensagens e Modelos', () => {
@@ -543,34 +543,109 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByTestId('selector-popover-financial')).not.toBeInTheDocument();
   });
+
+  it('no modo de modelo (type="template"), não deve exibir campo Categoria e os botões de referência devem ser toggles booleanos', () => {
+    const handleSave = vi.fn();
+    render(
+      <MessageModal
+        isOpen={true}
+        mode="create"
+        type="template"
+        onClose={() => {}}
+        onSave={handleSave}
+      />
+    );
+
+    // Não deve exibir o campo Categoria
+    expect(screen.queryByLabelText(/categoria/i)).not.toBeInTheDocument();
+
+    // Clicar no botão de processo ativa o boolean (azul) sem abrir popover de seleção real
+    const lawsuitBtn = screen.getByTestId('ref-btn-lawsuit');
+    expect(lawsuitBtn).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(lawsuitBtn);
+    expect(lawsuitBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(lawsuitBtn).toHaveClass('text-blue-600');
+    expect(screen.queryByTestId('selector-popover-lawsuit')).not.toBeInTheDocument();
+
+    // Na aba Escrever, as pills de processo são liberadas
+    fireEvent.click(screen.getByTestId('tab-write-btn'));
+    expect(screen.getByTestId('pill-processo-numero')).toBeInTheDocument();
+
+    // Preenche título e texto e salva
+    fireEvent.change(screen.getByLabelText(/título da template/i), {
+      target: { value: 'Modelo Teste' },
+    });
+    fireEvent.change(screen.getByLabelText(/corpo do texto/i), {
+      target: { value: 'Olá @cliente.nome, processo @processo.numero' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /salvar modelo/i }));
+
+    expect(handleSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Modelo Teste',
+        requiresLawsuit: true,
+        requiresFinancial: false,
+        requiresDate: false,
+        selectedLawsuit: null,
+      })
+    );
+  });
 });
 
-describe('MessagePreviewModal (Visualização da Mensagem com Botão Editar)', () => {
+describe('MessagePreviewModal (Visualização da Mensagem com Vínculos, Urgência, Exclusão e Edição)', () => {
   const sampleMessage: MessageItem = {
     id: 'msg-prev-1',
     title: 'Notificação de Despacho',
     content: 'Prezado(a) @cliente.nome, informamos despacho no processo.',
-    category: 'update',
     clients: [allOfficeClients[0]],
+    selectedLawsuit: availableLawsuits[0],
+    selectedFinancial: availableFinancials[0],
+    selectedDate: availableHearingDates[0],
     createdAt: '2026-10-16',
     hasAlert: true,
   };
 
-  it('deve renderizar a prévia da mensagem com título, conteúdo formatado e contagem de clientes', () => {
+  it('deve renderizar a prévia sem quantidade de destinatários, exibindo Vínculos coloridos, urgência e botão excluir', () => {
+    const handleDelete = vi.fn();
+    const handleToggleUrgency = vi.fn();
+
     render(
       <MessagePreviewModal
         isOpen={true}
         message={sampleMessage}
         onClose={() => {}}
         onEdit={() => {}}
+        onDelete={handleDelete}
+        onToggleUrgency={handleToggleUrgency}
       />
     );
 
     expect(screen.getByTestId('preview-modal-title')).toHaveTextContent('Notificação de Despacho');
     expect(screen.getByTestId('message-preview-content')).toBeInTheDocument();
     expect(screen.getByTestId('preview-pill-cliente-nome')).toBeInTheDocument();
-    expect(screen.getByText(/1 destinatário/i)).toBeInTheDocument();
-    expect(screen.getByTestId('preview-alert-indicator')).toBeInTheDocument();
+
+    // Não deve exibir a contagem "1 destinatário"
+    expect(screen.queryByText(/1 destinatário/i)).not.toBeInTheDocument();
+
+    // Deve exibir a seção "Vínculos" com badges coloridos por tipo de objeto
+    expect(screen.getByTestId('preview-links-section')).toBeInTheDocument();
+    expect(screen.getByText('Vínculos')).toBeInTheDocument();
+    expect(screen.getByTestId('link-badge-client')).toHaveTextContent(allOfficeClients[0].fullName);
+    expect(screen.getByTestId('link-badge-lawsuit')).toHaveTextContent(availableLawsuits[0].number);
+    expect(screen.getByTestId('link-badge-financial')).toHaveTextContent(availableFinancials[0].code);
+    expect(screen.getByTestId('link-badge-date')).toHaveTextContent(availableHearingDates[0].title);
+
+    // Toggle de Status de Urgência no modal de view
+    const urgencyToggle = screen.getByTestId('preview-urgency-toggle') as HTMLInputElement;
+    expect(urgencyToggle.checked).toBe(true);
+    fireEvent.click(urgencyToggle);
+    expect(handleToggleUrgency).toHaveBeenCalledWith(sampleMessage, false);
+
+    // Botão de Exclusão
+    const deleteBtn = screen.getByTestId('preview-delete-btn');
+    expect(deleteBtn).toBeInTheDocument();
+    fireEvent.click(deleteBtn);
+    expect(handleDelete).toHaveBeenCalledWith(sampleMessage);
   });
 
   it('deve disparar onEdit ao clicar no botão de Editar', () => {
@@ -594,11 +669,13 @@ describe('UseTemplateModal (Fluxo em 4 Etapas: Destinatários, Agendamento, Refe
     id: 'tmpl-flow-1',
     title: 'Aviso de Audiência Modelo',
     content: 'Olá @cliente.nome, sua audiência no processo @processo.numero foi marcada.',
-    category: 'hearing',
     clients: [allOfficeClients[0]],
+    requiresLawsuit: true,
+    requiresFinancial: false,
+    requiresDate: false,
   };
 
-  it('deve navegar pelas 4 etapas do wizard e permitir confirmação', () => {
+  it('deve navegar pelas 4 etapas, solicitar apenas referências marcadas no modelo e criar mensagem com título + nome do cliente', () => {
     const handleConfirm = vi.fn();
     const handleClose = vi.fn();
 
@@ -625,9 +702,11 @@ describe('UseTemplateModal (Fluxo em 4 Etapas: Destinatários, Agendamento, Refe
     // Avança para Etapa 3
     fireEvent.click(screen.getByTestId('wizard-next-btn'));
 
-    // Etapa 3: Referências
+    // Etapa 3: Referências — exibe APENAS Processo (marcado no modelo) e oculta Financeiro e Data
     expect(screen.getByTestId('wizard-step-references')).toBeInTheDocument();
-    expect(screen.getByText(/referenciar objetos da mensagem/i)).toBeInTheDocument();
+    expect(screen.getByTestId('ref-section-lawsuit')).toBeInTheDocument();
+    expect(screen.queryByTestId('ref-section-financial')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ref-section-date')).not.toBeInTheDocument();
 
     // Avança para Etapa 4
     fireEvent.click(screen.getByTestId('wizard-next-btn'));
@@ -647,27 +726,53 @@ describe('UseTemplateModal (Fluxo em 4 Etapas: Destinatários, Agendamento, Refe
     expect(confirmBtn).toBeInTheDocument();
     fireEvent.click(confirmBtn);
 
-    expect(handleConfirm).toHaveBeenCalledWith(
+    expect(handleConfirm).toHaveBeenCalledWith([
       expect.objectContaining({
-        title: 'Título Personalizado da Mensagem',
+        title: 'Título Personalizado da Mensagem - Roberto A. D. Silva',
         content: sampleTemplate.content,
-      })
-    );
+        clients: [allOfficeClients[0]],
+      }),
+    ]);
   });
 
-  it('deve criar uma mensagem diferente para cada cliente quando o agendamento for individual', () => {
-    const handleConfirm = vi.fn();
+  it('deve criar uma mensagem diferente para cada cliente com título padrão mais nome do cliente tanto em "Todos os Clientes" quanto em "Individual"', () => {
+    const handleConfirmAll = vi.fn();
     const multiClientTemplate: TemplateItem = {
       ...sampleTemplate,
       clients: [allOfficeClients[0], allOfficeClients[1]],
     };
 
+    const { unmount } = render(
+      <UseTemplateModal
+        isOpen={true}
+        template={multiClientTemplate}
+        onClose={() => {}}
+        onConfirm={handleConfirmAll}
+      />
+    );
+
+    // Mantém "Todos os Clientes" (padrão) e avança até a Etapa 4
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('confirm-use-template-btn'));
+
+    expect(handleConfirmAll).toHaveBeenCalledTimes(1);
+    const allModePayload = handleConfirmAll.mock.calls[0][0];
+    expect(Array.isArray(allModePayload)).toBe(true);
+    expect(allModePayload).toHaveLength(2);
+    expect(allModePayload[0].title).toBe('Aviso de Audiência Modelo - Roberto A. D. Silva');
+    expect(allModePayload[1].title).toBe('Aviso de Audiência Modelo - Mariana D. Prado');
+
+    unmount();
+
+    const handleConfirmIndiv = vi.fn();
     render(
       <UseTemplateModal
         isOpen={true}
         template={multiClientTemplate}
         onClose={() => {}}
-        onConfirm={handleConfirm}
+        onConfirm={handleConfirmIndiv}
       />
     );
 
@@ -684,8 +789,8 @@ describe('UseTemplateModal (Fluxo em 4 Etapas: Destinatários, Agendamento, Refe
     // Confirma criação
     fireEvent.click(screen.getByTestId('confirm-use-template-btn'));
 
-    expect(handleConfirm).toHaveBeenCalledTimes(1);
-    const createdPayload = handleConfirm.mock.calls[0][0];
+    expect(handleConfirmIndiv).toHaveBeenCalledTimes(1);
+    const createdPayload = handleConfirmIndiv.mock.calls[0][0];
     expect(Array.isArray(createdPayload)).toBe(true);
     expect(createdPayload).toHaveLength(2);
     expect(createdPayload[0].clients).toEqual([allOfficeClients[0]]);
@@ -768,5 +873,87 @@ describe('MessagesContainer (Integração Completa)', () => {
 
     expect(screen.getByTestId('use-template-modal')).toBeInTheDocument();
     expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
+  });
+
+  it('deve permitir ordenar mensagens por título, data de envio e cliente', () => {
+    render(<MessagesContainer />);
+
+    const sortSelect = screen.getByTestId('messages-sort-select') as HTMLSelectElement;
+    expect(sortSelect).toBeInTheDocument();
+
+    // Por padrão está ordenado por Título ('title')
+    let titles = screen.getAllByTestId('message-item-title').map((el) => el.textContent);
+    expect(titles[0]).toContain('Aviso de Audiência');
+
+    // Ordena por Data de Envio ('scheduledAt') -> msg-3 (2026-10-22) vem primeiro
+    fireEvent.change(sortSelect, { target: { value: 'scheduledAt' } });
+    titles = screen.getAllByTestId('message-item-title').map((el) => el.textContent);
+    expect(titles[0]).toContain('Felicitação de Aniversário');
+
+    // Ordena por Cliente ('client') -> Beatriz Vasconcelos (msg-4) vem primeiro
+    fireEvent.change(sortSelect, { target: { value: 'client' } });
+    titles = screen.getAllByTestId('message-item-title').map((el) => el.textContent);
+    expect(titles[0]).toContain('Beatriz Vasconcelos');
+  });
+
+  it('deve exibir ações em massa (urgência, enviar, excluir) e caixas de seleção visíveis somente quando ao menos uma mensagem estiver selecionada', () => {
+    render(<MessagesContainer />);
+
+    // Inicialmente nenhuma mensagem está selecionada -> barra de ações em massa oculta
+    expect(screen.queryByTestId('bulk-actions-bar')).not.toBeInTheDocument();
+    const wrapper1 = screen.getByTestId('select-checkbox-wrapper-msg-1');
+    expect(wrapper1).toHaveClass('opacity-0');
+
+    // Seleciona a primeira mensagem
+    const checkbox1 = screen.getByTestId('select-message-msg-1');
+    fireEvent.click(checkbox1);
+
+    // Agora todas as caixas de seleção do grid ficam visíveis (opacity-100) e a barra de ações aparece
+    expect(screen.getByTestId('select-checkbox-wrapper-msg-1')).toHaveClass('opacity-100');
+    expect(screen.getByTestId('select-checkbox-wrapper-msg-2')).toHaveClass('opacity-100');
+    expect(screen.getByTestId('bulk-actions-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('bulk-select-all-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('bulk-deselect-all-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('bulk-urgency-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('bulk-send-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('bulk-delete-btn')).toBeInTheDocument();
+
+    // Testa "Marcar todos" -> seleciona todas as 4 mensagens
+    fireEvent.click(screen.getByTestId('bulk-select-all-btn'));
+    expect(screen.getByText(/4 selecionada\(s\)/i)).toBeInTheDocument();
+
+    // Testa "Desmarcar todos" -> limpa a seleção e oculta a barra
+    fireEvent.click(screen.getByTestId('bulk-deselect-all-btn'));
+    expect(screen.queryByTestId('bulk-actions-bar')).not.toBeInTheDocument();
+
+    // Seleciona novamente a primeira mensagem e exclui em massa
+    fireEvent.click(screen.getByTestId('select-message-msg-1'));
+    fireEvent.click(screen.getByTestId('bulk-delete-btn'));
+    expect(screen.queryByTestId('select-message-msg-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bulk-actions-bar')).not.toBeInTheDocument();
+  });
+
+  it('deve filtrar mensagens pelo nome/código dos objetos de vínculo (processo, financeiro e data)', () => {
+    render(<MessagesContainer />);
+
+    const searchInput = screen.getByPlaceholderText(/buscar mensagens por título, conteúdo, cliente ou vínculo/i);
+
+    // Busca pelo código da fatura vinculada (FAT-2026-042 -> msg-2)
+    fireEvent.change(searchInput, { target: { value: 'FAT-2026-042' } });
+    let items = screen.getAllByTestId('message-item-title');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent('Cobrança de Honorários Sucumbenciais - Mariana D. Prado');
+
+    // Busca pelo número do processo vinculado (5004321-12.2025.8.26.0100 -> msg-4)
+    fireEvent.change(searchInput, { target: { value: '5004321-12' } });
+    items = screen.getAllByTestId('message-item-title');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent('Notificação de Andamento Processual - Beatriz Vasconcelos');
+
+    // Busca pelo local/título da data de audiência vinculada (Sala Virtual 04 -> msg-1)
+    fireEvent.change(searchInput, { target: { value: 'Sala Virtual 04' } });
+    items = screen.getAllByTestId('message-item-title');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent('Aviso de Audiência de Instrução - Roberto A. D. Silva');
   });
 });

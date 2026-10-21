@@ -6,6 +6,9 @@ import {
   AlertCircle,
   Plus,
   Search,
+  ArrowUpDown,
+  Send,
+  Trash2,
 } from 'lucide-react';
 import { GlassPanel } from '@/features/ui/glass-panel';
 import { Button } from '@/features/ui/button';
@@ -28,8 +31,12 @@ export const MessagesContainer: React.FC = () => {
   const [messages, setMessages] = React.useState<MessageItem[]>(initialMessages);
   const [templates, setTemplates] = React.useState<TemplateItem[]>(initialTemplates);
 
-  // Estados de busca/filtro
+  // Estados de busca, ordenação e seleção em massa de mensagens
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [sortBy, setSortBy] = React.useState<'title' | 'scheduledAt' | 'client'>('title');
+  const [selectedMessageIds, setSelectedMessageIds] = React.useState<string[]>([]);
+
+  const hasAnySelected = selectedMessageIds.length > 0;
 
   // Estados do Modal de Criação / Edição
   const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -62,17 +69,69 @@ export const MessagesContainer: React.FC = () => {
     templates: false,
   };
 
-  // Filtragem
+  // Filtragem e Ordenação de Mensagens (inclui título, conteúdo, cliente e objetos de vínculo)
   const filteredMessages = React.useMemo(() => {
-    if (!searchTerm.trim()) return messages;
-    const term = searchTerm.toLowerCase();
-    return messages.filter(
-      (m) =>
-        m.title.toLowerCase().includes(term) ||
-        m.content.toLowerCase().includes(term) ||
-        (m.clients && m.clients.some((c) => c.fullName.toLowerCase().includes(term)))
-    );
-  }, [messages, searchTerm]);
+    const term = searchTerm.toLowerCase().trim();
+    const list = !term
+      ? [...messages]
+      : messages.filter((m) => {
+          const matchesTitleOrContent =
+            m.title.toLowerCase().includes(term) ||
+            m.content.toLowerCase().includes(term);
+
+          const matchesClient =
+            m.clients &&
+            m.clients.some(
+              (c) =>
+                c.fullName.toLowerCase().includes(term) ||
+                c.name.toLowerCase().includes(term)
+            );
+
+          const matchesLawsuit =
+            m.selectedLawsuit &&
+            (m.selectedLawsuit.number.toLowerCase().includes(term) ||
+              m.selectedLawsuit.court.toLowerCase().includes(term) ||
+              m.selectedLawsuit.jurisdiction.toLowerCase().includes(term) ||
+              (m.selectedLawsuit.title && m.selectedLawsuit.title.toLowerCase().includes(term)));
+
+          const matchesFinancial =
+            m.selectedFinancial &&
+            (m.selectedFinancial.code.toLowerCase().includes(term) ||
+              m.selectedFinancial.amount.toLowerCase().includes(term) ||
+              m.selectedFinancial.dueDate.toLowerCase().includes(term));
+
+          const matchesDate =
+            m.selectedDate &&
+            (m.selectedDate.title.toLowerCase().includes(term) ||
+              m.selectedDate.date.toLowerCase().includes(term) ||
+              m.selectedDate.location.toLowerCase().includes(term));
+
+          return Boolean(
+            matchesTitleOrContent ||
+              matchesClient ||
+              matchesLawsuit ||
+              matchesFinancial ||
+              matchesDate
+          );
+        });
+
+    return list.sort((a, b) => {
+      if (sortBy === 'title') {
+        return a.title.localeCompare(b.title, 'pt-BR');
+      }
+      if (sortBy === 'scheduledAt') {
+        const dateA = new Date(a.scheduledAt || a.createdAt).getTime();
+        const dateB = new Date(b.scheduledAt || b.createdAt).getTime();
+        return dateA - dateB;
+      }
+      if (sortBy === 'client') {
+        const clientA = a.clients?.[0]?.fullName || '';
+        const clientB = b.clients?.[0]?.fullName || '';
+        return clientA.localeCompare(clientB, 'pt-BR');
+      }
+      return 0;
+    });
+  }, [messages, searchTerm, sortBy]);
 
   const filteredTemplates = React.useMemo(() => {
     if (!searchTerm.trim()) return templates;
@@ -166,6 +225,69 @@ export const MessagesContainer: React.FC = () => {
     );
   };
 
+  // Ações de exclusão e urgência individual (no modal de prévia/view)
+  const handleDeleteMessage = (message: MessageItem) => {
+    setMessages((prev) => prev.filter((m) => m.id !== message.id));
+    setSelectedMessageIds((prev) => prev.filter((id) => id !== message.id));
+    setPreviewMessage(null);
+  };
+
+  const handleToggleMessageUrgency = (message: MessageItem, hasAlert: boolean) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === message.id ? { ...m, hasAlert } : m))
+    );
+    setPreviewMessage((prev) =>
+      prev && prev.id === message.id ? { ...prev, hasAlert } : prev
+    );
+  };
+
+  // Ações de seleção em massa no grid de mensagens
+  const handleToggleSelectMessage = (message: MessageItem) => {
+    setSelectedMessageIds((prev) =>
+      prev.includes(message.id)
+        ? prev.filter((id) => id !== message.id)
+        : [...prev, message.id]
+    );
+  };
+
+  const handleSelectAllMessages = () => {
+    setSelectedMessageIds(filteredMessages.map((m) => m.id));
+  };
+
+  const handleDeselectAllMessages = () => {
+    setSelectedMessageIds([]);
+  };
+
+  const handleBulkToggleUrgency = () => {
+    if (selectedMessageIds.length === 0) return;
+    const allSelectedUrgent = messages
+      .filter((m) => selectedMessageIds.includes(m.id))
+      .every((m) => m.hasAlert);
+    const nextUrgency = !allSelectedUrgent;
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        selectedMessageIds.includes(m.id) ? { ...m, hasAlert: nextUrgency } : m
+      )
+    );
+  };
+
+  const handleBulkSend = () => {
+    if (selectedMessageIds.length === 0) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        selectedMessageIds.includes(m.id) ? { ...m, hasAlert: false } : m
+      )
+    );
+    setSelectedMessageIds([]);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedMessageIds.length === 0) return;
+    setMessages((prev) => prev.filter((m) => !selectedMessageIds.includes(m.id)));
+    setSelectedMessageIds([]);
+  };
+
   // Ações de agendamento (Data e Hora)
   const handleOpenScheduleModal = (item: MessageItem | TemplateItem) => {
     setScheduleModalItem(item);
@@ -246,22 +368,25 @@ export const MessagesContainer: React.FC = () => {
         );
       }
     } else if (activeTab === 'templates') {
+      const tmplData = data as Partial<TemplateItem>;
       if (modalMode === 'create') {
         const newTemplate: TemplateItem = {
           id: `tmpl-${Date.now()}`,
-          title: data.title || 'Novo Modelo',
-          content: data.content || '',
-          category: data.category || 'general',
+          title: tmplData.title || 'Novo Modelo',
+          content: tmplData.content || '',
           clients: [],
-          selectedLawsuit: data.selectedLawsuit || null,
-          selectedFinancial: data.selectedFinancial || null,
-          selectedDate: data.selectedDate || null,
+          requiresLawsuit: Boolean(tmplData.requiresLawsuit),
+          requiresFinancial: Boolean(tmplData.requiresFinancial),
+          requiresDate: Boolean(tmplData.requiresDate),
+          selectedLawsuit: null,
+          selectedFinancial: null,
+          selectedDate: null,
           updatedAt: new Date().toISOString(),
         };
         setTemplates((prev) => [newTemplate, ...prev]);
       } else if (selectedItem) {
         setTemplates((prev) =>
-          prev.map((t) => (t.id === selectedItem.id ? ({ ...t, ...data } as TemplateItem) : t))
+          prev.map((t) => (t.id === selectedItem.id ? ({ ...t, ...tmplData } as TemplateItem) : t))
         );
       }
     }
@@ -350,23 +475,122 @@ export const MessagesContainer: React.FC = () => {
               </div>
             </div>
 
-            {/* Barra de Filtros e Busca */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Buscar mensagens por título, conteúdo ou cliente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-xl border border-border/60 bg-background/80 py-2 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-              </div>
+            {/* Barra de Busca e Ordenação */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5 flex-1">
+                <div className="relative flex-1 min-w-[220px] max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Buscar mensagens por título, conteúdo, cliente ou vínculo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full rounded-xl border border-border/60 bg-background/80 py-2 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  />
+                </div>
 
-              <div className="text-[11px] text-muted-foreground hidden sm:block">
-                <span>Clique em uma mensagem para visualizar a prévia ou no botão de envio para disparar.</span>
+                {/* Seletor de Ordenamento: Título, Data de Envio, Cliente */}
+                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 py-1.5">
+                  <label
+                    htmlFor="messages-sort-select"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium whitespace-nowrap select-none cursor-pointer"
+                  >
+                    <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span>Ordenar por:</span>
+                  </label>
+                  <select
+                    id="messages-sort-select"
+                    data-testid="messages-sort-select"
+                    aria-label="Ordenar mensagens por"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'title' | 'scheduledAt' | 'client')}
+                    className="bg-transparent py-0.5 text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                  >
+                    <option value="title">Título</option>
+                    <option value="scheduledAt">Data de Envio</option>
+                    <option value="client">Cliente</option>
+                  </select>
+                </div>
               </div>
             </div>
+
+            {/* Barra de Ações em Massa abaixo da pesquisa (só aparece se ao menos uma caixa estiver selecionada) */}
+            {hasAnySelected && (
+              <div
+                data-testid="bulk-actions-bar"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-2.5 animate-in fade-in duration-150"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground mr-1">
+                    {selectedMessageIds.length} selecionada(s)
+                  </span>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-testid="bulk-select-all-btn"
+                    onClick={handleSelectAllMessages}
+                    disabled={
+                      filteredMessages.length > 0 &&
+                      filteredMessages.every((m) => selectedMessageIds.includes(m.id))
+                    }
+                    className="text-xs h-7 px-2.5"
+                  >
+                    Marcar todos
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    data-testid="bulk-deselect-all-btn"
+                    onClick={handleDeselectAllMessages}
+                    className="text-xs h-7 px-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    Desmarcar todos
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-testid="bulk-urgency-btn"
+                    onClick={handleBulkToggleUrgency}
+                    className="gap-1.5 text-xs h-8 border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+                  >
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    <span>Urgência</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-testid="bulk-send-btn"
+                    onClick={handleBulkSend}
+                    className="gap-1.5 text-xs h-8 border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    <span>Enviar</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-testid="bulk-delete-btn"
+                    onClick={handleBulkDelete}
+                    className="gap-1.5 text-xs h-8 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Excluir</span>
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Grid / Lista de Mensagens */}
             <div className="space-y-2.5">
@@ -380,6 +604,9 @@ export const MessagesContainer: React.FC = () => {
                     key={message.id}
                     item={message}
                     isMessage={true}
+                    isSelected={selectedMessageIds.includes(message.id)}
+                    hasAnySelected={hasAnySelected}
+                    onToggleSelect={handleToggleSelectMessage}
                     onSelect={(item) => setPreviewMessage(item as MessageItem)}
                     onEdit={handleOpenEdit}
                     onSend={handleOpenSendModal}
@@ -484,6 +711,8 @@ export const MessagesContainer: React.FC = () => {
         onClose={() => setPreviewMessage(null)}
         onEdit={(msg) => handleOpenEdit(msg)}
         onSend={(msg) => handleOpenSendModal(msg)}
+        onDelete={handleDeleteMessage}
+        onToggleUrgency={handleToggleMessageUrgency}
       />
 
       {/* Modal de Usar Modelo (Wizard 4 etapas) */}
