@@ -1,0 +1,72 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/faturas/:id/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturas/:id/"
+    },
+    {
+      "source": "/api/faturas/:id",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturas/:id/"
+    },
+    {
+      "source": "/api/faturas/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturas/"
+    },
+    {
+      "source": "/api/faturas",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturas/"
+    },
+    {
+      "source": "/api/faturasfaturas/:id/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturasfaturas/:id/"
+    },
+    {
+      "source": "/api/faturasfaturas/:id",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturasfaturas/:id/"
+    },
+    {
+      "source": "/api/faturasfaturas/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturasfaturas/"
+    },
+    {
+      "source": "/api/faturasfaturas",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/faturasfaturas/"
+    },
+    {
+      "source": "/api/clientes/:id/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientes/:id/"
+    },
+    {
+      "source": "/api/clientes/:id",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientes/:id/"
+    },
+    {
+      "source": "/api/clientes/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientes/"
+    },
+    {
+      "source": "/api/clientes",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientes/"
+    },
+    {
+      "source": "/api/clientesclientes/:id/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientesclientes/:id/"
+    },
+    {
+      "source": "/api/clientesclientes/:id",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientesclientes/:id/"
+    },
+    {
+      "source": "/api/clientesclientes/",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientesclientes/"
+    },
+    {
+      "source": "/api/clientesclientes",
+      "destination": "https://diafanis-api-239560742520.southamerica-east1.run.app/api/clientesclientes/"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
