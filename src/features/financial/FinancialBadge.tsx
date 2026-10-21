@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { cn } from '@/shared/cn';
 import { InvoiceStatus, FeeType } from './types';
+import { formatFeeTypeLabel, normalizeStatus } from './utils';
 import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 interface FinancialStatusBadgeProps {
-  status: InvoiceStatus;
+  status: InvoiceStatus | string;
   className?: string;
 }
 
@@ -12,7 +13,7 @@ const statusConfig: Record<
   InvoiceStatus,
   { label: string; bg: string; text: string; border: string; iconColor: string; icon: React.ElementType }
 > = {
-  paid: {
+  PAGO: {
     label: 'Pago',
     bg: 'bg-emerald-500/[0.08] dark:bg-emerald-400/[0.12]',
     text: 'text-emerald-700 dark:text-emerald-300',
@@ -20,7 +21,7 @@ const statusConfig: Record<
     iconColor: 'text-emerald-600 dark:text-emerald-400',
     icon: CheckCircle2,
   },
-  pending: {
+  PENDENTE: {
     label: 'Pendente',
     bg: 'bg-amber-500/[0.08] dark:bg-amber-400/[0.12]',
     text: 'text-amber-800 dark:text-amber-300',
@@ -28,7 +29,7 @@ const statusConfig: Record<
     iconColor: 'text-amber-600 dark:text-amber-400',
     icon: Clock,
   },
-  overdue: {
+  VENCIDO: {
     label: 'Vencido',
     bg: 'bg-rose-500/[0.08] dark:bg-rose-400/[0.12]',
     text: 'text-rose-700 dark:text-rose-300',
@@ -42,7 +43,8 @@ export const FinancialStatusBadge: React.FC<FinancialStatusBadgeProps> = ({
   status,
   className,
 }) => {
-  const config = statusConfig[status];
+  const normalized = normalizeStatus(status);
+  const config = statusConfig[normalized];
   const Icon = config.icon;
 
   return (
@@ -62,13 +64,11 @@ export const FinancialStatusBadge: React.FC<FinancialStatusBadgeProps> = ({
 };
 
 interface FeeTypeBadgeProps {
-  feeType: FeeType;
+  feeType: FeeType | string;
   className?: string;
 }
 
 export const FeeTypeBadge: React.FC<FeeTypeBadgeProps> = ({ feeType, className }) => {
-  const isContractual = feeType === 'contractual';
-
   return (
     <span
       className={cn(
@@ -76,7 +76,7 @@ export const FeeTypeBadge: React.FC<FeeTypeBadgeProps> = ({ feeType, className }
         className
       )}
     >
-      {isContractual ? 'Contratual' : 'Sucumbencial'}
+      {formatFeeTypeLabel(feeType)}
     </span>
   );
 };

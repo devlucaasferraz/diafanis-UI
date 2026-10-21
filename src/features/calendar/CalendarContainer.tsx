@@ -15,7 +15,22 @@ import { initialEvents, initialTeamMembers } from './mock-data';
 import { CalendarEvent, TeamMember } from './types';
 
 export const CalendarContainer: React.FC = () => {
-  const [events, setEvents] = React.useState<CalendarEvent[]>(initialEvents);
+  const [events, setEvents] = React.useState<CalendarEvent[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('diafanis_calendar_events');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {
+        // fallback
+      }
+    }
+    return initialEvents;
+  });
   const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>(initialTeamMembers);
   const [currentView, setCurrentView] = React.useState<string>('month');
   const [selectedDay, setSelectedDay] = React.useState<number>(15);
@@ -82,7 +97,15 @@ export const CalendarContainer: React.FC = () => {
       lawyerId: 'me',
     };
 
-    setEvents((prev) => [...prev, newEvt]);
+    setEvents((prev) => {
+      const next = [...prev, newEvt];
+      try {
+        localStorage.setItem('diafanis_calendar_events', JSON.stringify(next));
+      } catch {
+        // fallback
+      }
+      return next;
+    });
     setIsAddEventOpen(false);
     setNewEventTitle('');
     setNewEventProcess('');
