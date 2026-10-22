@@ -441,7 +441,7 @@ export const MessagesContainer: React.FC = () => {
   return (
     <div className="relative min-h-[calc(100vh-4rem)] pb-16">
       {/* Barra de Navegação Flutuante (Floating Island) */}
-      <div className="pt-5 pb-2">
+      <div className="sticky top-16 z-30 pt-5 pb-2 pointer-events-none">
         <FloatingTabNav
           activeTab={activeTab}
           onTabChange={setActiveTab}
