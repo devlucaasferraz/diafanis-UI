@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { X, Edit3, Send, Users, Scale, Clock } from 'lucide-react';
+import { X, Edit3, Send, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/features/ui/button';
+import { cn } from '@/shared/cn';
 import { MessageItem } from './types';
 import { renderContentWithPills } from './MessageModal';
 
@@ -10,6 +11,8 @@ export interface MessagePreviewModalProps {
   onClose: () => void;
   onEdit: (message: MessageItem) => void;
   onSend?: (message: MessageItem) => void;
+  onDelete?: (message: MessageItem) => void;
+  onToggleUrgency?: (message: MessageItem, hasAlert: boolean) => void;
 }
 
 export const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
@@ -18,6 +21,8 @@ export const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
   onClose,
   onEdit,
   onSend,
+  onDelete,
+  onToggleUrgency,
 }) => {
   if (!isOpen || !message) return null;
 
@@ -33,7 +38,24 @@ export const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
     }
   };
 
-  const recipientCount = message.clients?.length || 0;
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(message);
+      onClose();
+    }
+  };
+
+  const handleUrgencyChange = () => {
+    if (onToggleUrgency) {
+      onToggleUrgency(message, !message.hasAlert);
+    }
+  };
+
+  const hasLinks =
+    (message.clients && message.clients.length > 0) ||
+    Boolean(message.selectedLawsuit) ||
+    Boolean(message.selectedFinancial) ||
+    Boolean(message.selectedDate);
 
   return (
     <div
@@ -83,39 +105,48 @@ export const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
           </button>
         </div>
 
-        {/* Informações de Destinatários e Agendamento */}
-        <div className="px-6 py-3 border-b border-border/30 bg-muted/10 flex flex-wrap items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5 text-muted-foreground bg-background/80 px-2.5 py-1 rounded-lg border border-border/40">
-            <Users className="h-3.5 w-3.5 text-primary" />
-            <span className="font-medium text-foreground">
-              {recipientCount} {recipientCount === 1 ? 'destinatário' : 'destinatários'}
-            </span>
+        {/* Barra de Agendamento e Status de Urgência */}
+        <div className="px-6 py-3 border-b border-border/30 bg-muted/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            {message.scheduledAt ? (
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-background/80 px-2.5 py-1 rounded-lg border border-border/40">
+                <Clock className="h-3.5 w-3.5 text-amber-500" />
+                <span>Agendado:</span>
+                <span className="font-medium text-foreground">
+                  {new Date(message.scheduledAt).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-[11px]">Envio não agendado</span>
+            )}
           </div>
 
-          {message.scheduledAt && (
-            <div className="flex items-center gap-1.5 text-muted-foreground bg-background/80 px-2.5 py-1 rounded-lg border border-border/40">
-              <Clock className="h-3.5 w-3.5 text-amber-500" />
-              <span>Agendado:</span>
-              <span className="font-medium text-foreground">
-                {new Date(message.scheduledAt).toLocaleString('pt-BR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          )}
-
-          {message.selectedLawsuit && (
-            <div className="flex items-center gap-1.5 text-muted-foreground bg-background/80 px-2.5 py-1 rounded-lg border border-border/40">
-              <Scale className="h-3.5 w-3.5 text-blue-500" />
-              <span className="truncate max-w-[150px] font-medium text-foreground">
-                {message.selectedLawsuit.number}
-              </span>
-            </div>
-          )}
+          {/* Toggle de Status de Urgência no Modal de View */}
+          <label
+            data-testid="preview-urgency-label"
+            className={cn(
+              'flex items-center gap-2 px-3 py-1 rounded-lg border cursor-pointer transition-colors select-none',
+              message.hasAlert
+                ? 'border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
+                : 'border-border/50 bg-background/80 text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <input
+              type="checkbox"
+              data-testid="preview-urgency-toggle"
+              checked={Boolean(message.hasAlert)}
+              onChange={handleUrgencyChange}
+              className="h-3.5 w-3.5 rounded border-border text-rose-600 focus:ring-rose-500"
+            />
+            <span className="h-2 w-2 rounded-full bg-rose-600 inline-block" />
+            <span>Status de Urgência</span>
+          </label>
         </div>
 
         {/* Corpo do Preview */}
@@ -136,37 +167,87 @@ export const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
             </div>
           </div>
 
-          {/* Lista de Destinatários Resumida */}
-          {message.clients && message.clients.length > 0 && (
-            <div className="space-y-2">
+          {/* Seção Vínculos: Cliente e Objetos de Referência com cores distintas */}
+          {hasLinks && (
+            <div data-testid="preview-links-section" className="space-y-2">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Destinatários Vinculados
+                Vínculos
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {message.clients.map((cli) => (
+                {/* Vínculo(s) de Cliente - Cor Violeta (somente bolinha e borda) */}
+                {message.clients?.map((cli) => (
                   <span
                     key={cli.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border/50 text-xs text-foreground font-medium"
+                    data-testid="link-badge-client"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-violet-500/50 text-xs text-foreground font-medium"
                   >
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                    <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" />
                     {cli.fullName}
                   </span>
                 ))}
+
+                {/* Vínculo de Processo - Cor Azul (somente bolinha e borda) */}
+                {message.selectedLawsuit && (
+                  <span
+                    data-testid="link-badge-lawsuit"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-500/50 text-xs text-foreground font-medium"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                    {message.selectedLawsuit.number}
+                  </span>
+                )}
+
+                {/* Vínculo Financeiro - Cor Esmeralda/Verde (somente bolinha e borda) */}
+                {message.selectedFinancial && (
+                  <span
+                    data-testid="link-badge-financial"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/50 text-xs text-foreground font-medium"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                    {message.selectedFinancial.code} ({message.selectedFinancial.amount})
+                  </span>
+                )}
+
+                {/* Vínculo de Data / Audiência - Cor Âmbar/Laranja (somente bolinha e borda) */}
+                {message.selectedDate && (
+                  <span
+                    data-testid="link-badge-date"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-500/50 text-xs text-foreground font-medium"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                    {message.selectedDate.title} ({message.selectedDate.date})
+                  </span>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer com botão Editar */}
+        {/* Footer com botões Fechar, Excluir, Enviar e Editar */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border/40 bg-muted/20">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="text-xs"
-          >
-            Fechar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="text-xs"
+            >
+              Fechar
+            </Button>
+
+            {onDelete && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDelete}
+                data-testid="preview-delete-btn"
+                className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Excluir</span>
+              </Button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {onSend && (
