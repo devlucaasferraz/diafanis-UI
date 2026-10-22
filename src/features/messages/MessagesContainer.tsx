@@ -712,7 +712,7 @@ export const MessagesContainer: React.FC = () => {
                   Modelos de Disparo
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Templates padrão de felicitação ou aviso de audiência para envio manual ou webhook futuro (RF10).
+                  Modelos pré-configurados de felicitação e convocação para envio rápido ou agendado.
                 </p>
               </div>
 

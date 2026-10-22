@@ -107,8 +107,6 @@ export interface TemplateItem {
   updatedAt?: string;
 }
 
-export type NotificationPriority = 'fatal' | 'in_progress' | 'hearing';
-
 export interface NotificationItem {
   id: string;
   title: string;
@@ -116,7 +114,7 @@ export interface NotificationItem {
   processNumber?: string;
   assignedLawyer: string;
   deadline: string;
-  priority: NotificationPriority;
+  isFatal?: boolean;
   isRead: boolean;
   createdAt: string;
 }

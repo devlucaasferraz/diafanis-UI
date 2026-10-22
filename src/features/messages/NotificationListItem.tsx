@@ -3,7 +3,7 @@ import { Check, Clock, Scale, User } from 'lucide-react';
 import { cn } from '@/shared/cn';
 import { GlassPanel } from '@/features/ui/glass-panel';
 import { StatusBadge } from '@/features/ui/status-badge';
-import { NotificationItem, NotificationPriority } from './types';
+import { NotificationItem } from './types';
 
 export interface NotificationListItemProps {
   item: NotificationItem;
@@ -11,12 +11,6 @@ export interface NotificationListItemProps {
   onToggleRead?: (item: NotificationItem) => void;
   className?: string;
 }
-
-const PRIORITY_LABELS: Record<NotificationPriority, string> = {
-  fatal: 'Prazo Fatal',
-  hearing: 'Audiência',
-  in_progress: 'Em Andamento',
-};
 
 export const NotificationListItem: React.FC<NotificationListItemProps> = ({
   item,
@@ -95,13 +89,15 @@ export const NotificationListItem: React.FC<NotificationListItemProps> = ({
           </div>
         </div>
 
-        {/* Direita: Badge de Prioridade e Ação de Marcar como Lida */}
+        {/* Direita: Badge opcional de Prazo Fatal e Ação de Marcar como Lida */}
         <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
-          <StatusBadge
-            status={item.priority}
-            label={PRIORITY_LABELS[item.priority]}
-            size="sm"
-          />
+          {item.isFatal && (
+            <StatusBadge
+              status="fatal"
+              label="Prazo Fatal"
+              size="sm"
+            />
+          )}
 
           {onToggleRead && (
             <button
