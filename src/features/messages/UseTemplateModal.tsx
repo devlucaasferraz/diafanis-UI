@@ -133,10 +133,10 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
       });
       setClientSchedules(initialSchedules);
 
-      // Objetos de referência do modelo se houver
-      setSelectedLawsuit(template.selectedLawsuit || null);
-      setSelectedFinancial(template.selectedFinancial || null);
-      setSelectedDate(template.selectedDate || null);
+      // Referência real somente ao usar o modelo (inicia limpo)
+      setSelectedLawsuit(null);
+      setSelectedFinancial(null);
+      setSelectedDate(null);
 
       setClientSearchTerm('');
       setIsAddingClient(false);
@@ -146,11 +146,10 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
 
   if (!isOpen || !template) return null;
 
-  // Análise dos pills exigidos pelo texto do template (excluindo clientes)
-  const templateContent = template.content || '';
-  const requiresLawsuit = templateContent.includes('@processo');
-  const requiresFinancial = templateContent.includes('@fatura');
-  const requiresDate = templateContent.includes('@data');
+  // Verifica quais objetos de referência foram marcados (boolean) no modal de edição do modelo
+  const requiresLawsuit = Boolean(template.requiresLawsuit ?? template.selectedLawsuit);
+  const requiresFinancial = Boolean(template.requiresFinancial ?? template.selectedFinancial);
+  const requiresDate = Boolean(template.requiresDate ?? template.selectedDate);
   const hasReferenceRequirements = requiresLawsuit || requiresFinancial || requiresDate;
 
   // Handlers da Etapa 1 (Destinatários)
@@ -276,20 +275,41 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
       d.location.toLowerCase().includes(dateSearch.toLowerCase())
   );
 
-  // Confirmação final
+  // Confirmação final: cria sempre uma mensagem por cliente com "<Título Padrão> - <Nome do Cliente>"
   const handleFinalConfirm = () => {
     const finalTitle = messageTitle.trim() || template.title;
+    const globalScheduledAt =
+      scheduleScope === 'all' && globalDate ? `${globalDate}T${globalTime || '09:00'}` : null;
 
-    if (scheduleScope === 'individual' && selectedClients.length > 0) {
-      const individualMessages: Partial<MessageItem>[] = selectedClients.map((client) => {
-        const cfg = clientSchedules[client.id] || {
-          clientId: client.id,
-          type: 'birthday',
-          date: getNextBirthdayDate(client.birthDate),
-          time: '09:00',
-        };
-        const clientScheduledAt = cfg.date ? `${cfg.date}T${cfg.time || '09:00'}` : null;
+    if (selectedClients.length > 0) {
+      const clientMessages: Partial<MessageItem>[] = selectedClients.map((client) => {
         const shortClientName = formatClientShortName(client.fullName || client.name);
+
+        if (scheduleScope === 'individual') {
+          const cfg = clientSchedules[client.id] || {
+            clientId: client.id,
+            type: 'birthday',
+            date: getNextBirthdayDate(client.birthDate),
+            time: '09:00',
+          };
+          const clientScheduledAt = cfg.date ? `${cfg.date}T${cfg.time || '09:00'}` : null;
+
+          return {
+            title: `${finalTitle} - ${shortClientName}`,
+            content: template.content,
+            category: template.category,
+            clients: [client],
+            scheduleConfig: {
+              scope: 'individual',
+              clientSchedules: { [client.id]: cfg },
+            },
+            scheduledAt: clientScheduledAt,
+            selectedLawsuit: requiresLawsuit ? selectedLawsuit : null,
+            selectedFinancial: requiresFinancial ? selectedFinancial : null,
+            selectedDate: requiresDate ? selectedDate : null,
+            hasAlert: false,
+          };
+        }
 
         return {
           title: `${finalTitle} - ${shortClientName}`,
@@ -297,28 +317,25 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
           category: template.category,
           clients: [client],
           scheduleConfig: {
-            scope: 'individual',
-            clientSchedules: { [client.id]: cfg },
+            scope: 'all',
+            globalScheduledAt: globalScheduledAt || undefined,
           },
-          scheduledAt: clientScheduledAt,
-          selectedLawsuit,
-          selectedFinancial,
-          selectedDate,
+          scheduledAt: globalScheduledAt,
+          selectedLawsuit: requiresLawsuit ? selectedLawsuit : null,
+          selectedFinancial: requiresFinancial ? selectedFinancial : null,
+          selectedDate: requiresDate ? selectedDate : null,
           hasAlert: false,
         };
       });
 
-      onConfirm(individualMessages);
+      onConfirm(clientMessages);
       onClose();
       return;
     }
 
-    const scheduledAt =
-      scheduleScope === 'all' && globalDate ? `${globalDate}T${globalTime || '09:00'}` : null;
-
     const scheduleConfig: ScheduleConfig =
       scheduleScope === 'all'
-        ? { scope: 'all', globalScheduledAt: scheduledAt || undefined }
+        ? { scope: 'all', globalScheduledAt: globalScheduledAt || undefined }
         : { scope: 'individual', clientSchedules };
 
     onConfirm({
@@ -327,10 +344,10 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
       category: template.category,
       clients: selectedClients,
       scheduleConfig,
-      scheduledAt,
-      selectedLawsuit,
-      selectedFinancial,
-      selectedDate,
+      scheduledAt: globalScheduledAt,
+      selectedLawsuit: requiresLawsuit ? selectedLawsuit : null,
+      selectedFinancial: requiresFinancial ? selectedFinancial : null,
+      selectedDate: requiresDate ? selectedDate : null,
       hasAlert: false,
     });
     onClose();
@@ -813,184 +830,190 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
                     <span>Nenhum objeto externo exigido</span>
                   </div>
                   <p className="text-muted-foreground leading-relaxed">
-                    Este modelo utiliza apenas dados dinâmicos do cliente (como nome ou aniversário). Nenhuma vinculação de processo, fatura ou audiência é obrigatória para este envio.
+                    Nenhum objeto de referência (processo, fatura ou data) foi marcado no modelo. Você pode avançar para a prévia da mensagem.
                   </p>
                 </div>
               ) : null}
 
-              {/* Seletor de Processo */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <Scale className="h-4 w-4 text-blue-500" />
-                    Processo Vinculado {requiresLawsuit && <span className="text-rose-500">*</span>}
-                  </span>
-                  {selectedLawsuit && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLawsuit(null)}
-                      className="text-[11px] text-destructive hover:underline"
-                    >
-                      Remover
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Pesquisar processo pelo número, vara ou comarca..."
-                      value={lawsuitSearch}
-                      onChange={(e) => setLawsuitSearch(e.target.value)}
-                      className="w-full rounded-xl border border-border/50 bg-background/80 py-1.5 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
+              {/* Seletor de Processo (exibido apenas se marcado no modelo) */}
+              {requiresLawsuit && (
+                <div data-testid="ref-section-lawsuit" className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Scale className="h-4 w-4 text-blue-500" />
+                      Processo Vinculado <span className="text-rose-500">*</span>
+                    </span>
+                    {selectedLawsuit && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLawsuit(null)}
+                        className="text-[11px] text-destructive hover:underline"
+                      >
+                        Remover
+                      </button>
+                    )}
                   </div>
 
-                  <div className="max-h-[140px] overflow-y-auto space-y-1.5">
-                    {filteredLawsuits.map((lawsuit) => {
-                      const isSelected = selectedLawsuit?.id === lawsuit.id;
-                      return (
-                        <div
-                          key={lawsuit.id}
-                          onClick={() => setSelectedLawsuit(isSelected ? null : lawsuit)}
-                          className={cn(
-                            'flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all text-xs',
-                            isSelected
-                              ? 'border-primary bg-primary/10 text-primary font-semibold'
-                              : 'border-border/40 bg-card hover:bg-muted/40 text-foreground'
-                          )}
-                        >
-                          <div>
-                            <div className="font-mono text-xs">{lawsuit.number}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {lawsuit.court} - {lawsuit.jurisdiction}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Pesquisar processo pelo número, vara ou comarca..."
+                        value={lawsuitSearch}
+                        onChange={(e) => setLawsuitSearch(e.target.value)}
+                        className="w-full rounded-xl border border-border/50 bg-background/80 py-1.5 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="max-h-[140px] overflow-y-auto space-y-1.5">
+                      {filteredLawsuits.map((lawsuit) => {
+                        const isSelected = selectedLawsuit?.id === lawsuit.id;
+                        return (
+                          <div
+                            key={lawsuit.id}
+                            onClick={() => setSelectedLawsuit(isSelected ? null : lawsuit)}
+                            className={cn(
+                              'flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all text-xs',
+                              isSelected
+                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                : 'border-border/40 bg-card hover:bg-muted/40 text-foreground'
+                            )}
+                          >
+                            <div>
+                              <div className="font-mono text-xs">{lawsuit.number}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {lawsuit.court} - {lawsuit.jurisdiction}
+                              </div>
                             </div>
+                            {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
                           </div>
-                          {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Seletor de Fatura / Financeiro */}
-              <div className="space-y-2 pt-2 border-t border-border/30">
-                <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <DollarSign className="h-4 w-4 text-emerald-500" />
-                    Fatura / Parcela Financeira {requiresFinancial && <span className="text-rose-500">*</span>}
-                  </span>
-                  {selectedFinancial && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFinancial(null)}
-                      className="text-[11px] text-destructive hover:underline"
-                    >
-                      Remover
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Pesquisar fatura por código ou valor..."
-                      value={financialSearch}
-                      onChange={(e) => setFinancialSearch(e.target.value)}
-                      className="w-full rounded-xl border border-border/50 bg-background/80 py-1.5 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
+              {/* Seletor de Fatura / Financeiro (exibido apenas se marcado no modelo) */}
+              {requiresFinancial && (
+                <div data-testid="ref-section-financial" className="space-y-2 pt-2 border-t border-border/30">
+                  <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <DollarSign className="h-4 w-4 text-emerald-500" />
+                      Fatura / Parcela Financeira <span className="text-rose-500">*</span>
+                    </span>
+                    {selectedFinancial && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFinancial(null)}
+                        className="text-[11px] text-destructive hover:underline"
+                      >
+                        Remover
+                      </button>
+                    )}
                   </div>
 
-                  <div className="max-h-[120px] overflow-y-auto space-y-1.5">
-                    {filteredFinancials.map((fin) => {
-                      const isSelected = selectedFinancial?.id === fin.id;
-                      return (
-                        <div
-                          key={fin.id}
-                          onClick={() => setSelectedFinancial(isSelected ? null : fin)}
-                          className={cn(
-                            'flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all text-xs',
-                            isSelected
-                              ? 'border-primary bg-primary/10 text-primary font-semibold'
-                              : 'border-border/40 bg-card hover:bg-muted/40 text-foreground'
-                          )}
-                        >
-                          <div>
-                            <div className="font-semibold text-xs">{fin.amount}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {fin.code} • Vencimento: {fin.dueDate}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Pesquisar fatura por código ou valor..."
+                        value={financialSearch}
+                        onChange={(e) => setFinancialSearch(e.target.value)}
+                        className="w-full rounded-xl border border-border/50 bg-background/80 py-1.5 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="max-h-[120px] overflow-y-auto space-y-1.5">
+                      {filteredFinancials.map((fin) => {
+                        const isSelected = selectedFinancial?.id === fin.id;
+                        return (
+                          <div
+                            key={fin.id}
+                            onClick={() => setSelectedFinancial(isSelected ? null : fin)}
+                            className={cn(
+                              'flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all text-xs',
+                              isSelected
+                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                : 'border-border/40 bg-card hover:bg-muted/40 text-foreground'
+                            )}
+                          >
+                            <div>
+                              <div className="font-semibold text-xs">{fin.amount}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {fin.code} • Vencimento: {fin.dueDate}
+                              </div>
                             </div>
+                            {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
                           </div>
-                          {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Seletor de Data de Audiência */}
-              <div className="space-y-2 pt-2 border-t border-border/30">
-                <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 text-amber-500" />
-                    Data de Audiência {requiresDate && <span className="text-rose-500">*</span>}
-                  </span>
-                  {selectedDate && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDate(null)}
-                      className="text-[11px] text-destructive hover:underline"
-                    >
-                      Remover
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Pesquisar audiência por título, local ou data..."
-                      value={dateSearch}
-                      onChange={(e) => setDateSearch(e.target.value)}
-                      className="w-full rounded-xl border border-border/50 bg-background/80 py-1.5 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
+              {/* Seletor de Data de Audiência (exibido apenas se marcado no modelo) */}
+              {requiresDate && (
+                <div data-testid="ref-section-date" className="space-y-2 pt-2 border-t border-border/30">
+                  <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4 text-amber-500" />
+                      Data de Audiência <span className="text-rose-500">*</span>
+                    </span>
+                    {selectedDate && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDate(null)}
+                        className="text-[11px] text-destructive hover:underline"
+                      >
+                        Remover
+                      </button>
+                    )}
                   </div>
 
-                  <div className="max-h-[120px] overflow-y-auto space-y-1.5">
-                    {filteredDates.map((d) => {
-                      const isSelected = selectedDate?.id === d.id;
-                      return (
-                        <div
-                          key={d.id}
-                          onClick={() => setSelectedDate(isSelected ? null : d)}
-                          className={cn(
-                            'flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all text-xs',
-                            isSelected
-                              ? 'border-primary bg-primary/10 text-primary font-semibold'
-                              : 'border-border/40 bg-card hover:bg-muted/40 text-foreground'
-                          )}
-                        >
-                          <div>
-                            <div className="font-semibold text-xs">{d.title}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {d.date} • {d.location}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Pesquisar audiência por título, local ou data..."
+                        value={dateSearch}
+                        onChange={(e) => setDateSearch(e.target.value)}
+                        className="w-full rounded-xl border border-border/50 bg-background/80 py-1.5 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="max-h-[120px] overflow-y-auto space-y-1.5">
+                      {filteredDates.map((d) => {
+                        const isSelected = selectedDate?.id === d.id;
+                        return (
+                          <div
+                            key={d.id}
+                            onClick={() => setSelectedDate(isSelected ? null : d)}
+                            className={cn(
+                              'flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all text-xs',
+                              isSelected
+                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                : 'border-border/40 bg-card hover:bg-muted/40 text-foreground'
+                            )}
+                          >
+                            <div>
+                              <div className="font-semibold text-xs">{d.title}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {d.date} • {d.location}
+                              </div>
                             </div>
+                            {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
                           </div>
-                          {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
