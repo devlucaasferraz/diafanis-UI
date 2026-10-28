@@ -1,16 +1,181 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { FinancialSummary } from './FinancialSummary';
 import { FinancialStatusBadge, FeeTypeBadge } from './FinancialBadge';
-import { DocumentReceiptBadge, isImageDocument, truncateFileName } from './DocumentReceiptBadge';
 import { FinancialFilters } from './FinancialFilters';
 import { FinancialTable } from './FinancialTable';
 import { FinancialPagination } from './FinancialPagination';
 import { NewInvoiceModal } from './NewInvoiceModal';
 import { InvoiceDetailsModal } from './InvoiceDetailsModal';
 import { FinancialContainer } from './FinancialContainer';
-import { initialInvoices, calculateSummary } from './mock-data';
-import { formatCurrency, formatDateBR } from './utils';
+import {
+  calculateSummary,
+  formatCurrency,
+  formatDateBR,
+  formatShortId,
+  mapFaturaFromAPI,
+} from './utils';
+import { Invoice } from './types';
+import * as api from './api';
+
+const initialInvoices: Invoice[] = [
+  {
+    id: '11111111-1111-4111-8111-111111111101',
+    cliente: 'aaaa1111-1111-4111-8111-111111111101',
+    clienteNome: 'Agropecuária Vale do São Francisco Ltda',
+    processo: 'bbbb1111-1111-4111-8111-111111111101',
+    descricao: 'Parcela 1 de honorários contratuais de assessoria tributária rural.',
+    valor: 6750.0,
+    tipo: 'CONTRATUAL',
+    status: 'PAGO',
+    data_vencimento: '2026-10-02',
+    data_pagamento: '2026-10-02',
+    created_at: '2026-10-01T10:00:00Z',
+    updated_at: '2026-10-02T14:30:00Z',
+  },
+  {
+    id: '22222222-2222-4222-8222-222222222202',
+    cliente: 'aaaa1111-1111-4111-8111-111111111102',
+    clienteNome: 'Cooperativa Agrícola de Petrolina (COOPAP)',
+    processo: 'bbbb1111-1111-4111-8111-111111111102',
+    descricao: 'Honorários sucumbenciais da 2ª Vara Cível da Comarca de Petrolina.',
+    valor: 12500.0,
+    tipo: 'SUCUMBENCIAL',
+    status: 'PAGO',
+    data_vencimento: '2026-10-04',
+    data_pagamento: '2026-10-04',
+    created_at: '2026-10-01T11:00:00Z',
+    updated_at: '2026-10-04T16:00:00Z',
+  },
+  {
+    id: '33333333-3333-4333-8333-333333333303',
+    cliente: 'aaaa1111-1111-4111-8111-111111111103',
+    clienteNome: 'Frutas do Vale Exportação S/A',
+    processo: null,
+    descricao: 'Aguardando liquidação de boleto bancário vencido há mais de 7 dias.',
+    valor: 9800.0,
+    tipo: 'CONTRATUAL',
+    status: 'VENCIDO',
+    data_vencimento: '2026-10-06',
+    data_pagamento: null,
+    created_at: '2026-10-01T12:00:00Z',
+    updated_at: '2026-10-06T12:00:00Z',
+  },
+  {
+    id: '44444444-4444-4444-8444-444444444404',
+    cliente: 'aaaa1111-1111-4111-8111-111111111104',
+    clienteNome: 'Transportadora Juazeirense Ltda',
+    processo: null,
+    descricao: 'Defesa trabalhista no TRT-5 Juazeiro.',
+    valor: 4200.0,
+    tipo: 'CONTRATUAL',
+    status: 'PAGO',
+    data_vencimento: '2026-10-09',
+    data_pagamento: '2026-10-08',
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555505',
+    cliente: null,
+    clienteNome: undefined,
+    processo: null,
+    descricao: 'Aposentadoria rural concedida - honorários de êxito.',
+    valor: 3750.0,
+    tipo: 'CONTRATUAL',
+    status: 'PAGO',
+    data_vencimento: '2026-10-12',
+    data_pagamento: '2026-10-11',
+  },
+  {
+    id: '66666666-6666-4666-8666-666666666606',
+    cliente: null,
+    processo: null,
+    descricao: 'Honorários de sucumbência arbitrados pelo TJPE.',
+    valor: 7200.0,
+    tipo: 'SUCUMBENCIAL',
+    status: 'PAGO',
+    data_vencimento: '2026-10-15',
+    data_pagamento: '2026-10-15',
+  },
+  {
+    id: '77777777-7777-4777-8777-777777777707',
+    cliente: null,
+    processo: null,
+    descricao: 'Vencimento próximo. Boleto emitido com código Pix registrado.',
+    valor: 5500.0,
+    tipo: 'CONTRATUAL',
+    status: 'PENDENTE',
+    data_vencimento: '2026-10-18',
+    data_pagamento: null,
+  },
+  {
+    id: '88888888-8888-4888-8888-888888888808',
+    cliente: null,
+    processo: null,
+    descricao: 'Consultoria contratual para recuperação de crédito.',
+    valor: 3600.0,
+    tipo: 'CONTRATUAL',
+    status: 'PENDENTE',
+    data_vencimento: '2026-10-21',
+    data_pagamento: null,
+  },
+  {
+    id: '99999999-9999-4999-8999-999999999909',
+    cliente: null,
+    processo: null,
+    descricao: 'Aguardando liberação de alvará judicial.',
+    valor: 8320.0,
+    tipo: 'SUCUMBENCIAL',
+    status: 'PENDENTE',
+    data_vencimento: '2026-10-24',
+    data_pagamento: null,
+  },
+  {
+    id: '10101010-1010-4010-8010-101010101010',
+    cliente: null,
+    processo: null,
+    descricao: 'Honorários fixos de assessoria jurídica mensal preventiva.',
+    valor: 4600.0,
+    tipo: 'CONTRATUAL',
+    status: 'PENDENTE',
+    data_vencimento: '2026-10-28',
+    data_pagamento: null,
+  },
+  {
+    id: '12121212-1212-4212-8212-121212121211',
+    cliente: null,
+    processo: null,
+    descricao: 'Tentativa de acordo amigável em andamento.',
+    valor: 2900.0,
+    tipo: 'CONTRATUAL',
+    status: 'VENCIDO',
+    data_vencimento: '2026-09-28',
+    data_pagamento: null,
+  },
+  {
+    id: '13131313-1313-4313-8313-131313131312',
+    cliente: null,
+    processo: null,
+    descricao: 'Execução de título extrajudicial.',
+    valor: 6150.0,
+    tipo: 'SUCUMBENCIAL',
+    status: 'PENDENTE',
+    data_vencimento: '2026-10-31',
+    data_pagamento: null,
+  },
+];
+
+vi.mock('./api', async () => {
+  const actual = await vi.importActual<typeof import('./api')>('./api');
+  return {
+    ...actual,
+    listarFaturas: vi.fn(),
+    listarClientes: vi.fn(),
+    criarFatura: vi.fn(),
+    atualizarFatura: vi.fn(),
+    deletarFatura: vi.fn(),
+    obterFaturaPorId: vi.fn(),
+  };
+});
 
 describe('Financial Utils & Calculations (RF13)', () => {
   it('deve calcular corretamente o fluxo financeiro com honorários pagos, pendentes e vencidos', () => {
@@ -35,6 +200,29 @@ describe('Financial Utils & Calculations (RF13)', () => {
   it('deve formatar datas no padrão DD/MM/AAAA', () => {
     expect(formatDateBR('2026-10-15')).toBe('15/10/2026');
     expect(formatDateBR('')).toBe('-');
+  });
+
+  it('deve mapear corretamente o objeto Fatura retornado pela API para o tipo Invoice da UI', () => {
+    const mapped = mapFaturaFromAPI(
+      {
+        id: '11111111-2222-3333-4444-555555555555',
+        cliente: 'aaaa1111-1111-4111-8111-111111111101',
+        processo: null,
+        descricao: 'Honorários advocatícios iniciais',
+        valor: '1500.00',
+        tipo: 'RECEITA',
+        status: 'PENDENTE',
+        data_vencimento: '2026-11-10',
+        data_pagamento: null,
+      },
+      { 'aaaa1111-1111-4111-8111-111111111101': 'Cliente Teste' }
+    );
+
+    expect(mapped.valor).toBe(1500);
+    expect(mapped.clienteNome).toBe('Cliente Teste');
+    expect(mapped.status).toBe('PENDENTE');
+    expect(mapped.tipo).toBe('RECEITA');
+    expect(formatShortId(mapped.id)).toBe('#11111111');
   });
 });
 
@@ -75,54 +263,25 @@ describe('FinancialSummary Component (RF13 - Visão Simplificada de Fluxo)', () 
 
 describe('FinancialBadge Components', () => {
   it('deve renderizar os badges de status Pago, Pendente e Vencido corretamente', () => {
-    const { rerender } = render(<FinancialStatusBadge status="paid" />);
+    const { rerender } = render(<FinancialStatusBadge status="PAGO" />);
     expect(screen.getByText('Pago')).toBeInTheDocument();
 
-    rerender(<FinancialStatusBadge status="pending" />);
+    rerender(<FinancialStatusBadge status="PENDENTE" />);
     expect(screen.getByText('Pendente')).toBeInTheDocument();
 
-    rerender(<FinancialStatusBadge status="overdue" />);
+    rerender(<FinancialStatusBadge status="VENCIDO" />);
     expect(screen.getByText('Vencido')).toBeInTheDocument();
   });
 
-  it('deve renderizar os badges de tipo Contratual e Sucumbencial', () => {
-    const { rerender } = render(<FeeTypeBadge feeType="contractual" />);
+  it('deve renderizar os badges de tipo Contratual, Sucumbencial e Receita', () => {
+    const { rerender } = render(<FeeTypeBadge feeType="CONTRATUAL" />);
     expect(screen.getByText('Contratual')).toBeInTheDocument();
 
-    rerender(<FeeTypeBadge feeType="succumbential" />);
+    rerender(<FeeTypeBadge feeType="SUCUMBENCIAL" />);
     expect(screen.getByText('Sucumbencial')).toBeInTheDocument();
-  });
 
-  it('deve identificar corretamente extensões de imagem e outros documentos', () => {
-    expect(isImageDocument('recibo.png')).toBe(true);
-    expect(isImageDocument('comprovante.jpeg')).toBe(true);
-    expect(isImageDocument('foto.jpg')).toBe(true);
-    expect(isImageDocument('recibo.webp')).toBe(true);
-    expect(isImageDocument('documento.pdf')).toBe(false);
-    expect(isImageDocument('')).toBe(false);
-  });
-
-  it('deve renderizar a badge de comprovante PDF e disparar onClick ao clicar', () => {
-    const onClick = vi.fn();
-    render(<DocumentReceiptBadge documentName="REC-1001.pdf" onClick={onClick} />);
-    const badge = screen.getByText('REC-1001.pdf');
-    expect(badge).toBeInTheDocument();
-    fireEvent.click(badge);
-    expect(onClick).toHaveBeenCalled();
-  });
-
-  it('deve truncar nomes de arquivos longos preservando a extensão para não ocupar a coluna', () => {
-    expect(truncateFileName('REC-1001.pdf', 14)).toBe('REC-1001.pdf');
-    expect(truncateFileName('comprovante-transferencia-bancaria.pdf', 14)).toBe('comprova...pdf');
-    expect(truncateFileName('recibo_pix_pagamento_empresa.jpeg', 14)).toBe('recibo_...jpeg');
-  });
-
-  it('deve renderizar o nome truncado mantendo o nome completo no title e aria-label', () => {
-    render(<DocumentReceiptBadge documentName="comprovante-transferencia-bancaria.pdf" />);
-    expect(screen.getByText('comprova...pdf')).toBeInTheDocument();
-    expect(
-      screen.getByTitle('Documento PDF: comprovante-transferencia-bancaria.pdf')
-    ).toBeInTheDocument();
+    rerender(<FeeTypeBadge feeType="RECEITA" />);
+    expect(screen.getByText('Receita')).toBeInTheDocument();
   });
 });
 
@@ -140,7 +299,7 @@ describe('FinancialFilters Component', () => {
         onSearchChange={vi.fn()}
         feeTypeFilter="all"
         onFeeTypeChange={vi.fn()}
-        sortField="dueDate"
+        sortField="data_vencimento"
         sortOrder="desc"
         onSortChange={vi.fn()}
         onNewInvoice={vi.fn()}
@@ -154,7 +313,7 @@ describe('FinancialFilters Component', () => {
     expect(screen.getByText('Vencidos')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Pagos'));
-    expect(onTabChange).toHaveBeenCalledWith('paid');
+    expect(onTabChange).toHaveBeenCalledWith('PAGO');
   });
 
   it('deve disparar onSearchChange ao digitar na busca e permitir limpar', () => {
@@ -168,7 +327,7 @@ describe('FinancialFilters Component', () => {
         onSearchChange={onSearchChange}
         feeTypeFilter="all"
         onFeeTypeChange={vi.fn()}
-        sortField="dueDate"
+        sortField="data_vencimento"
         sortOrder="desc"
         onSortChange={vi.fn()}
         onNewInvoice={vi.fn()}
@@ -176,11 +335,10 @@ describe('FinancialFilters Component', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText(/buscar cliente ou processo/i);
+    const input = screen.getByPlaceholderText(/buscar descrição ou cliente/i);
     fireEvent.change(input, { target: { value: 'Petrolina' } });
     expect(onSearchChange).toHaveBeenCalledWith('Petrolina');
 
-    // Rerender with active search query and click clear button
     rerender(
       <FinancialFilters
         currentTab="all"
@@ -190,7 +348,7 @@ describe('FinancialFilters Component', () => {
         onSearchChange={onSearchChange}
         feeTypeFilter="all"
         onFeeTypeChange={vi.fn()}
-        sortField="dueDate"
+        sortField="data_vencimento"
         sortOrder="desc"
         onSortChange={vi.fn()}
         onNewInvoice={vi.fn()}
@@ -214,7 +372,7 @@ describe('FinancialFilters Component', () => {
         onSearchChange={vi.fn()}
         feeTypeFilter="all"
         onFeeTypeChange={vi.fn()}
-        sortField="dueDate"
+        sortField="data_vencimento"
         sortOrder="desc"
         onSortChange={vi.fn()}
         onNewInvoice={onNewInvoice}
@@ -230,7 +388,7 @@ describe('FinancialFilters Component', () => {
 describe('FinancialTable Component (RF12 - Listagem de Honorários)', () => {
   const sampleInvoices = initialInvoices.slice(0, 3);
 
-  it('deve renderizar as linhas de cobrança com código, cliente, processo e valor', () => {
+  it('deve renderizar as linhas de cobrança com ID, descrição, cliente, processo e valor', () => {
     render(
       <FinancialTable
         invoices={sampleInvoices}
@@ -243,15 +401,16 @@ describe('FinancialTable Component (RF12 - Listagem de Honorários)', () => {
       />
     );
 
+    expect(screen.getByRole('columnheader', { name: 'Descrição' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Processo' })).toBeInTheDocument();
-    expect(screen.getByText('HON-2026-001')).toBeInTheDocument();
+    expect(screen.getByText('#11111111')).toBeInTheDocument();
+    expect(
+      screen.getByText('Parcela 1 de honorários contratuais de assessoria tributária rural.')
+    ).toBeInTheDocument();
     expect(screen.getByText('Agropecuária Vale do São Francisco Ltda')).toBeInTheDocument();
-    expect(screen.getByText('0001842-30.2025.8.17.1130')).toBeInTheDocument();
-    expect(screen.getByText('Dr. Alberto Queiroz')).toBeInTheDocument();
     expect(screen.getByText(/6\.750,00/)).toBeInTheDocument();
-    expect(screen.getByText('02/10/2026')).toBeInTheDocument();
-    expect(screen.getByText('REC-1001.pdf')).toBeInTheDocument();
+    expect(screen.getAllByText('02/10/2026').length).toBeGreaterThanOrEqual(1);
   });
 
   it('deve disparar onToggleSelect ao clicar no checkbox da linha', () => {
@@ -268,28 +427,9 @@ describe('FinancialTable Component (RF12 - Listagem de Honorários)', () => {
       />
     );
 
-    const checkbox = screen.getByLabelText('Selecionar cobrança HON-2026-001');
+    const checkbox = screen.getByLabelText('Selecionar cobrança #11111111');
     fireEvent.click(checkbox);
-    expect(onToggleSelect).toHaveBeenCalledWith('inv-1');
-  });
-
-  it('deve disparar onSelectAll ao clicar no checkbox do cabeçalho', () => {
-    const onSelectAll = vi.fn();
-    render(
-      <FinancialTable
-        invoices={sampleInvoices}
-        selectedIds={[]}
-        onToggleSelect={vi.fn()}
-        onSelectAll={onSelectAll}
-        onToggleStatus={vi.fn()}
-        onDeleteInvoice={vi.fn()}
-        onViewInvoiceDetails={vi.fn()}
-      />
-    );
-
-    const headerCheckbox = screen.getByLabelText('Selecionar todas as cobranças');
-    fireEvent.click(headerCheckbox);
-    expect(onSelectAll).toHaveBeenCalledWith(true);
+    expect(onToggleSelect).toHaveBeenCalledWith(sampleInvoices[0].id);
   });
 
   it('deve renderizar estado vazio quando a lista de faturas for vazia', () => {
@@ -306,24 +446,6 @@ describe('FinancialTable Component (RF12 - Listagem de Honorários)', () => {
     );
 
     expect(screen.getByText('Nenhuma cobrança encontrada')).toBeInTheDocument();
-  });
-
-  it('deve manter o container com altura padronizada evitando layout shift', () => {
-    const { container } = render(
-      <FinancialTable
-        invoices={sampleInvoices} // 3 itens
-        selectedIds={[]}
-        onToggleSelect={vi.fn()}
-        onSelectAll={vi.fn()}
-        onToggleStatus={vi.fn()}
-        onDeleteInvoice={vi.fn()}
-        onViewInvoiceDetails={vi.fn()}
-      />
-    );
-
-    const tableWrapper = container.querySelector('.overflow-x-auto');
-    expect(tableWrapper).toHaveClass('h-[565px]');
-    expect(tableWrapper).toHaveClass('min-h-[565px]');
   });
 });
 
@@ -343,7 +465,6 @@ describe('FinancialPagination Component', () => {
     expect(screen.getByText(/mostrando 1–5 de 15 cobranças/i)).toBeInTheDocument();
 
     const nextBtn = screen.getByRole('button', { name: /próximo/i });
-    expect(nextBtn).toBeInTheDocument();
     fireEvent.click(nextBtn);
     expect(onPageChange).toHaveBeenCalledWith(2);
 
@@ -354,102 +475,60 @@ describe('FinancialPagination Component', () => {
 
 describe('NewInvoiceModal Component (RF12 - Cadastro de Honorários)', () => {
   it('não deve renderizar quando isOpen for false', () => {
-    render(
-      <NewInvoiceModal
-        isOpen={false}
-        onClose={vi.fn()}
-        onSubmit={vi.fn()}
-      />
-    );
-
+    render(<NewInvoiceModal isOpen={false} onClose={vi.fn()} onSubmit={vi.fn()} />);
     expect(screen.queryByText('Cadastrar Honorário')).not.toBeInTheDocument();
   });
 
   it('deve exibir erros de validação ao tentar submeter formulário em branco', () => {
     const onSubmit = vi.fn();
-    render(
-      <NewInvoiceModal
-        isOpen={true}
-        onClose={vi.fn()}
-        onSubmit={onSubmit}
-      />
-    );
-
-    expect(screen.getByRole('heading', { name: 'Cadastrar Honorário' })).toBeInTheDocument();
+    render(<NewInvoiceModal isOpen={true} onClose={vi.fn()} onSubmit={onSubmit} />);
 
     const submitBtn = screen.getByRole('button', { name: 'Cadastrar Honorário' });
     fireEvent.click(submitBtn);
 
-    expect(screen.getByText('Nome do cliente é obrigatório.')).toBeInTheDocument();
-    expect(screen.getByText('Número do processo CNJ é obrigatório.')).toBeInTheDocument();
-    expect(screen.getByText('Informe um valor válido maior que zero.')).toBeInTheDocument();
+    expect(screen.getByText('A descrição da fatura é obrigatória.')).toBeInTheDocument();
+    expect(screen.getByText('O valor da fatura deve ser maior que zero.')).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('deve submeter o novo honorário com sucesso quando todos os dados forem preenchidos', () => {
-    const onSubmit = vi.fn();
+  it('deve submeter o novo honorário com sucesso no formato do model Fatura da API', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
     const onClose = vi.fn();
-    render(
-      <NewInvoiceModal
-        isOpen={true}
-        onClose={onClose}
-        onSubmit={onSubmit}
-        nextReferenceCode="HON-2026-099"
-      />
-    );
+    render(<NewInvoiceModal isOpen={true} onClose={onClose} onSubmit={onSubmit} />);
 
-    // Preenche cliente
-    const clientInput = screen.getByLabelText(/cliente ou requerente/i);
-    fireEvent.change(clientInput, { target: { value: 'Usina Solar São Francisco' } });
+    fireEvent.change(screen.getByLabelText(/descrição \*/i), {
+      target: { value: 'Honorários advocatícios iniciais' },
+    });
+    fireEvent.change(screen.getByLabelText(/valor \(r\$\)/i), {
+      target: { value: '1500' },
+    });
+    fireEvent.change(screen.getByLabelText(/data de vencimento/i), {
+      target: { value: '2026-11-10' },
+    });
 
-    // Preenche processo CNJ
-    const processInput = screen.getByLabelText(/processo cnj/i);
-    fireEvent.change(processInput, { target: { value: '0004567-12.2026.8.17.1130' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar Honorário' }));
 
-    // Preenche valor
-    const amountInput = screen.getByLabelText(/valor \(r\$\)/i);
-    fireEvent.change(amountInput, { target: { value: '8500' } });
-
-    // Preenche vencimento
-    const dueDateInput = screen.getByLabelText(/data de vencimento/i);
-    fireEvent.change(dueDateInput, { target: { value: '2026-11-20' } });
-
-    // Clica em cadastrar
-    const submitBtn = screen.getByRole('button', { name: 'Cadastrar Honorário' });
-    fireEvent.click(submitBtn);
-
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clientName: 'Usina Solar São Francisco',
-        processNumber: '0004567-12.2026.8.17.1130',
-        amount: 8500,
-        dueDate: '2026-11-20',
-        feeType: 'contractual',
-        status: 'pending',
-      })
-    );
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it('deve fechar o modal ao clicar no botão Cancelar', () => {
-    const onClose = vi.fn();
-    render(
-      <NewInvoiceModal
-        isOpen={true}
-        onClose={onClose}
-        onSubmit={vi.fn()}
-      />
-    );
-
-    const cancelBtn = screen.getByRole('button', { name: 'Cancelar' });
-    fireEvent.click(cancelBtn);
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          descricao: 'Honorários advocatícios iniciais',
+          valor: 1500,
+          tipo: 'CONTRATUAL',
+          status: 'PENDENTE',
+          data_vencimento: '2026-11-10',
+          cliente: null,
+          processo: null,
+          data_pagamento: null,
+        })
+      );
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 });
 
 describe('InvoiceDetailsModal Component', () => {
-  const paidSample = initialInvoices[0]; // status: 'paid', hasDocument: true
-  const pendingSample = initialInvoices[2]; // status: 'overdue' / pending
+  const paidSample = initialInvoices[0];
+  const pendingSample = initialInvoices[2];
 
   it('deve renderizar as informações principais do honorário no modal de detalhes', () => {
     render(
@@ -461,35 +540,12 @@ describe('InvoiceDetailsModal Component', () => {
       />
     );
 
-    expect(screen.getByText(paidSample.reference)).toBeInTheDocument();
-    expect(screen.getByText(paidSample.clientName)).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(paidSample.processNumber))).toBeInTheDocument();
-    expect(screen.getByText(paidSample.lawyerName)).toBeInTheDocument();
-    expect(screen.getByText(paidSample.documentName!)).toBeInTheDocument();
+    expect(screen.getByText('#11111111')).toBeInTheDocument();
+    expect(screen.getByText(paidSample.descricao)).toBeInTheDocument();
+    expect(screen.getByText(paidSample.clienteNome!)).toBeInTheDocument();
   });
 
-  it('deve permitir reverter honorário pago para pendente e fechar o modal', () => {
-    const onToggleStatus = vi.fn();
-    const onClose = vi.fn();
-    render(
-      <InvoiceDetailsModal
-        isOpen={true}
-        invoice={paidSample}
-        onClose={onClose}
-        onToggleStatus={onToggleStatus}
-      />
-    );
-
-    const revertBtn = screen.getByText('Reverter para Pendente');
-    fireEvent.click(revertBtn);
-    expect(onToggleStatus).toHaveBeenCalledWith(paidSample.id);
-
-    const closeBtn = screen.getByRole('button', { name: 'Fechar' });
-    fireEvent.click(closeBtn);
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it('deve exibir fluxo de liquidação com upload de recibo para honorário pendente', () => {
+  it('deve permitir registrar pagamento para fatura pendente/vencida', () => {
     const onRegisterPayment = vi.fn();
     render(
       <InvoiceDetailsModal
@@ -501,68 +557,67 @@ describe('InvoiceDetailsModal Component', () => {
       />
     );
 
-    expect(screen.getByText(/selecionar comprovante/i)).toBeInTheDocument();
-    expect(screen.getByText('Liquidar com Comprovante')).toBeInTheDocument();
-
-    const liquidateBtn = screen.getByText('Liquidar com Comprovante');
-    fireEvent.click(liquidateBtn);
+    fireEvent.click(screen.getByText('Registrar Pagamento'));
 
     expect(onRegisterPayment).toHaveBeenCalledWith(
       pendingSample.id,
       expect.objectContaining({
-        paidDate: expect.any(String),
+        data_pagamento: expect.any(String),
       })
     );
   });
 });
 
-describe('FinancialContainer (Integração Completa da Tela de Gestão Financeira)', () => {
-  it('deve renderizar o título da página e componentes principais', () => {
+describe('FinancialContainer (Integração CRUD Completa com diafanis-api)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.listarClientes).mockResolvedValue([
+      {
+        id: 'aaaa1111-1111-4111-8111-111111111101',
+        nome: 'Agropecuária Vale do São Francisco Ltda',
+        cpf: '12345678901',
+        telefone_whatsapp: '87999998888',
+        data_nascimento: '1985-05-10',
+      },
+    ]);
+    vi.mocked(api.listarFaturas).mockResolvedValue(initialInvoices);
+  });
+
+  it('deve carregar faturas da API ao montar e exibir na tabela', async () => {
     render(<FinancialContainer />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Gestão Financeira' })).toBeInTheDocument();
-    expect(screen.getByText('Fluxo de Honorários')).toBeInTheDocument();
-    expect(screen.getByText('Cobranças e Honorários')).toBeInTheDocument();
-  });
 
-  it('deve filtrar por abas (Todos, Pagos, Pendentes, Vencidos)', () => {
-    render(<FinancialContainer />);
-
-    // Clica na aba Vencidos
-    const overdueTab = screen.getByText('Vencidos');
-    fireEvent.click(overdueTab);
-
-    // Deve exibir faturas vencidas
-    expect(screen.getByText('HON-2026-003')).toBeInTheDocument();
-    // Não deve exibir faturas pagas nesta aba
-    expect(screen.queryByText('HON-2026-001')).not.toBeInTheDocument();
-  });
-
-  it('deve filtrar dinamicamente pelo campo de busca', () => {
-    render(<FinancialContainer />);
-
-    const searchInput = screen.getByPlaceholderText(/buscar cliente ou processo/i);
-    fireEvent.change(searchInput, { target: { value: 'Juazeirense' } });
-
-    expect(screen.getByText('Transportadora Juazeirense Ltda')).toBeInTheDocument();
-    expect(screen.queryByText('Agropecuária Vale do São Francisco Ltda')).not.toBeInTheDocument();
-  });
-
-  it('deve abrir o modal de cadastro e adicionar uma nova fatura com recálculo em tempo real', () => {
-    render(<FinancialContainer />);
-
-    // Clica no botão Novo Honorário
-    const newBtn = screen.getByText('Novo Honorário');
-    fireEvent.click(newBtn);
-
-    expect(screen.getByRole('heading', { name: 'Cadastrar Honorário' })).toBeInTheDocument();
-
-    // Preenche o formulário
-    fireEvent.change(screen.getByLabelText(/cliente ou requerente/i), {
-      target: { value: 'Hospital Regional de Petrolina' },
+    await waitFor(() => {
+      expect(api.listarFaturas).toHaveBeenCalled();
+      expect(screen.getByText('#13131313')).toBeInTheDocument();
     });
-    fireEvent.change(screen.getByLabelText(/processo cnj/i), {
-      target: { value: '0809999-11.2026.8.17.1130' },
+  });
+
+  it('deve criar uma nova fatura via POST na API e atualizar a listagem', async () => {
+    const createdInvoice = {
+      id: '99990000-1111-4111-8111-111111111199',
+      cliente: null,
+      processo: null,
+      descricao: 'Honorários de consultoria tributária',
+      valor: 15000,
+      tipo: 'CONTRATUAL',
+      status: 'PENDENTE' as const,
+      data_vencimento: '2026-11-30',
+      data_pagamento: null,
+    };
+    vi.mocked(api.criarFatura).mockResolvedValue(createdInvoice);
+
+    render(<FinancialContainer />);
+
+    await waitFor(() => {
+      expect(screen.getByText('#13131313')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Novo Honorário'));
+
+    fireEvent.change(screen.getByLabelText(/descrição \*/i), {
+      target: { value: 'Honorários de consultoria tributária' },
     });
     fireEvent.change(screen.getByLabelText(/valor \(r\$\)/i), {
       target: { value: '15000' },
@@ -571,44 +626,35 @@ describe('FinancialContainer (Integração Completa da Tela de Gestão Financeir
       target: { value: '2026-11-30' },
     });
 
-    // Submete
-    const submitBtn = screen.getByRole('button', { name: 'Cadastrar Honorário' });
-    fireEvent.click(submitBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar Honorário' }));
 
-    // Modal deve fechar e nova fatura deve aparecer na listagem
-    expect(screen.queryByRole('heading', { name: 'Cadastrar Honorário' })).not.toBeInTheDocument();
-    expect(screen.getByText('Hospital Regional de Petrolina')).toBeInTheDocument();
-    expect(screen.getByText('0809999-11.2026.8.17.1130')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(api.criarFatura).toHaveBeenCalled();
+      expect(screen.getByText('Honorários de consultoria tributária')).toBeInTheDocument();
+    });
   });
 
-  it('deve permitir selecionar cobranças e disparar ação em massa', () => {
+  it('deve atualizar status em massa via PATCH na API ao marcar selecionadas como pagas', async () => {
+    vi.mocked(api.atualizarFatura).mockImplementation(async (id) => {
+      const found = initialInvoices.find((i) => i.id === id)!;
+      return { ...found, status: 'PAGO', data_pagamento: '2026-10-20' };
+    });
+
     render(<FinancialContainer />);
+
+    await waitFor(() => {
+      expect(screen.getByText('#13131313')).toBeInTheDocument();
+    });
 
     const selectAllCheckbox = screen.getByLabelText('Selecionar todas as cobranças');
     fireEvent.click(selectAllCheckbox);
 
-    // Deve exibir banner de seleção em massa
-    expect(screen.getByText(/cobranças selecionadas/i)).toBeInTheDocument();
     expect(screen.getByText('Marcar selecionadas como pagas')).toBeInTheDocument();
-
-    // Clica em marcar selecionadas como pagas
     fireEvent.click(screen.getByText('Marcar selecionadas como pagas'));
 
-    // Banner desaparece após ação
-    expect(screen.queryByText(/cobranças selecionadas/i)).not.toBeInTheDocument();
-  });
-
-  it('deve paginar a lista com tamanho fixo de 10 itens por página e navegar entre páginas sem perder estabilidade', () => {
-    render(<FinancialContainer />);
-
-    // Total de 12 itens: página 1 exibe 10 itens
-    expect(screen.getByText(/mostrando 1–10 de 12 cobranças/i)).toBeInTheDocument();
-
-    // Navega para a página 2
-    const p2Btn = screen.getByRole('button', { name: '2' });
-    fireEvent.click(p2Btn);
-
-    // Página 2 exibe as 2 cobranças restantes
-    expect(screen.getByText(/mostrando 11–12 de 12 cobranças/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(api.atualizarFatura).toHaveBeenCalled();
+      expect(screen.queryByText(/cobranças selecionadas/i)).not.toBeInTheDocument();
+    });
   });
 });

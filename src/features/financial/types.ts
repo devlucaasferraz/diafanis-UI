@@ -1,27 +1,60 @@
-export type InvoiceStatus = 'paid' | 'pending' | 'overdue';
+export type InvoiceStatus = 'PAGO' | 'PENDENTE' | 'VENCIDO';
 
-export type FeeType = 'contractual' | 'succumbential';
+export type FeeType = 'CONTRATUAL' | 'SUCUMBENCIAL' | 'RECEITA' | 'DESPESA';
+
+export interface Cliente {
+  id: string;
+  nome: string;
+  cpf: string;
+  telefone_whatsapp: string;
+  data_nascimento: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FaturaAPIResponse {
+  id: string;
+  cliente: string | null;
+  processo: string | null;
+  descricao: string;
+  valor: string | number;
+  tipo: string;
+  status: string;
+  data_vencimento: string;
+  data_pagamento: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface Invoice {
   id: string;
-  reference: string;
-  clientName: string;
-  processNumber: string;
-  feeType: FeeType;
-  lawyerName: string;
-  lawyerId: string;
-  amount: number;
-  dueDate: string; // ISO date format YYYY-MM-DD
-  paidDate?: string;
+  cliente: string | null;
+  clienteNome?: string;
+  processo: string | null;
+  descricao: string;
+  valor: number;
+  tipo: FeeType | string;
   status: InvoiceStatus;
-  hasDocument: boolean;
-  documentName?: string;
-  notes?: string;
+  data_vencimento: string; // YYYY-MM-DD
+  data_pagamento: string | null; // YYYY-MM-DD
+  created_at?: string;
+  updated_at?: string;
 }
 
-export type InvoiceFilterTab = 'all' | 'paid' | 'pending' | 'overdue';
+export interface FaturaPayload {
+  cliente?: string | null;
+  processo?: string | null;
+  descricao?: string;
+  valor: string | number;
+  tipo: string;
+  status: InvoiceStatus;
+  data_vencimento: string;
+  data_pagamento?: string | null;
+}
 
-export type InvoiceSortField = 'dueDate' | 'amount' | 'clientName' | 'reference';
+export type InvoiceFilterTab = 'all' | 'PAGO' | 'PENDENTE' | 'VENCIDO';
+
+export type InvoiceSortField = 'data_vencimento' | 'valor' | 'descricao';
 export type SortOrder = 'asc' | 'desc';
 
 export interface FinancialSummaryData {

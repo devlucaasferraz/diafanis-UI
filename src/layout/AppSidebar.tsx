@@ -86,7 +86,8 @@ export const AppSidebar: React.FC = () => {
             const Icon = item.icon;
             const isActive =
               currentPath === item.to ||
-              (item.to === '/calendar' && currentPath.startsWith('/calendar'));
+              (item.to === '/calendar' && currentPath.startsWith('/calendar')) ||
+              (item.to === '/deadlines' && currentPath.startsWith('/deadlines'));
 
             return (
               <Link
