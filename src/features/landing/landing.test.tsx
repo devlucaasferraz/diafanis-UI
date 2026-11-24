@@ -53,7 +53,7 @@ describe('Contato demonstrativo', () => {
   it('valida os campos antes de preparar o rascunho', async () => {
     const user = userEvent.setup();
     render(<LandingContact />);
-    await user.click(screen.getByRole('button', { name: 'Visualizar mensagem' }));
+    await user.click(screen.getByRole('button', { name: 'Enviar mensagem' }));
     expect(screen.queryByRole('region', { name: 'Prévia da mensagem' })).not.toBeInTheDocument();
   });
   it('gera uma prévia local e copia o texto sem simular envio', async () => {
@@ -62,7 +62,7 @@ describe('Contato demonstrativo', () => {
     await user.type(screen.getByLabelText('Seu nome'), 'Ana Costa');
     await user.type(screen.getByLabelText('E-mail'), 'ana@example.com');
     await user.type(screen.getByLabelText('Sua mensagem'), 'Quero conhecer o sistema para meu escritório.');
-    await user.click(screen.getByRole('button', { name: 'Visualizar mensagem' }));
+    await user.click(screen.getByRole('button', { name: 'Enviar mensagem' }));
     const region = screen.getByRole('region', { name: 'Prévia da mensagem' });
     expect(within(region).getByText('Ana Costa')).toBeInTheDocument();
     expect(within(region).getByText('Rascunho local, sem envio.')).toBeInTheDocument();

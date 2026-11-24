@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Menu, X } from 'lucide-react';
+import { ArrowUpRight, Menu, X } from 'lucide-react';
 import { PrismField } from './PrismField';
 import { FeaturePreviews } from './FeaturePreviews';
-import { LandingContact, placeholderEmail } from './LandingContact';
-import { SectionHeading } from './SectionHeading';
-import { OfficeFilm } from './OfficeFilm';
+import { LandingContact } from './LandingContact';
 import { ResultsSection } from './ResultsSection';
 import './landing.css';
 
-const nav = [{ name: 'Sobre', id: 'sobre' }, { name: 'O sistema', id: 'sistema' }, { name: 'Contato', id: 'contato' }];
+const nav = [{ name: 'Sobre nós', id: 'resultados' }, { name: 'Soluções', id: 'sistema' }, { name: 'Contato', id: 'contato' }];
 
 export function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -30,7 +28,7 @@ export function LandingPage() {
   }, [menuOpen]);
   return (
     <div className={`diafanis-landing${paused ? ' motion-paused' : ''}`} ref={root}>
-      <a className="landing-skip" href="#sobre">Ir para o conteúdo</a>
+      <a className="landing-skip" href="#resultados">Ir para o conteúdo</a>
       <header className="landing-header">
         <a href="#inicio" className="landing-brand" aria-label="Diafanís, início"><span className="landing-prism" aria-hidden="true" /><span className="landing-brand-copy"><span>diafanís</span><span className="landing-brand-descriptor">Gestão para advocacia</span></span></a>
         <nav className="landing-desktop-nav" aria-label="Navegação principal">{nav.map(item => <a href={`#${item.id}`} key={item.id}>{item.name}</a>)}</nav>
@@ -43,23 +41,39 @@ export function LandingPage() {
           <div className="landing-hero-glow" aria-hidden="true" />
           <div className="landing-hero-bottom"><h1 id="landing-title">Clareza em<br />cada detalhe.</h1><div className="landing-hero-copy"><p>Transparência na gestão. Confiança em cada decisão.</p><a href="#sistema" className="landing-text-link">Conheça o Diafanís</a></div></div>
         </section>
-        <section id="sobre" className="landing-about landing-section" aria-labelledby="about-heading">
-          <SectionHeading id="about-heading" title="Feito para o seu escritório." />
-          <OfficeFilm paused={paused} />
-        </section>
-        <FeaturePreviews paused={paused} />
         <ResultsSection paused={paused} />
+        <FeaturePreviews paused={paused} />
+        <section id="experimentar" className="landing-access landing-section" aria-labelledby="access-heading">
+          <h2 id="access-heading" data-reveal>Experimente<br />o Diafanís.</h2>
+          <div className="lp-access-action" data-reveal>
+            <Link to="/dashboard" className="landing-access-button"><span className="lp-access-orbit" aria-hidden="true"><ArrowUpRight /></span><span>Acesse a plataforma</span></Link>
+            <p>Demonstração sem cadastro.</p>
+          </div>
+        </section>
         <LandingContact paused={paused} />
-        <section className="landing-access landing-section" aria-labelledby="access-heading"><SectionHeading id="access-heading" title="Entre e conheça." /><div className="lp-access-action"><Link to="/dashboard" className="landing-access-button">Entrar no Diafanís</Link><small>Acesso à demonstração, sem cadastro.</small></div></section>
       </main>
       <footer className="lp-footer">
-        <div className="lp-footer-grid"><div className="lp-footer-intro"><a className="landing-brand" href="#inicio"><span className="landing-prism" aria-hidden="true" /><span>diafanís</span></a></div>
-          <nav aria-label="Recursos no rodapé"><h3>O sistema</h3><Link to="/calendar">Calendário</Link><Link to="/financial">Financeiro</Link><Link to="/messages">Mensagens</Link><Link to="/dashboard">Entrar no sistema</Link></nav>
-          <nav aria-label="Navegação no rodapé"><h3>Conheça</h3><a href="#sobre">Sobre o Diafanís</a><a href="#sistema">Prévias do sistema</a><a href="#resultados">Resultados</a><a href="#contato">Contato</a></nav>
-          <div className="lp-footer-contact"><h3>Fale com a equipe</h3><a href="#contato">{placeholderEmail}</a><p>Contato ilustrativo.</p></div>
+        <div className="lp-footer-main">
+          <div className="lp-footer-identity">
+            <a className="landing-brand" href="#inicio" aria-label="Diafanís, início"><span className="landing-prism" aria-hidden="true" /><span>diafanís</span></a>
+            <p>© {new Date().getFullYear()} Diafanís</p>
+          </div>
+          <nav className="lp-footer-column" aria-label="Institucional">
+            <h3>Conheça</h3>
+            <a href="#resultados">Sobre nós</a>
+            <a href="#sistema">Soluções</a>
+          </nav>
+          <nav className="lp-footer-column" aria-label="Recursos da plataforma">
+            <h3>Plataforma</h3>
+            <Link to="/calendar">Calendário</Link>
+            <Link to="/financial">Financeiro</Link>
+            <Link to="/messages">Mensagens</Link>
+          </nav>
+          <nav className="lp-footer-column" aria-label="Acesso à plataforma">
+            <h3>Acesso</h3>
+            <Link to="/dashboard">Experimentar o Diafanís</Link>
+          </nav>
         </div>
-        <div className="lp-footer-wordmark" aria-hidden="true">diafanís</div>
-        <div className="lp-footer-bottom"><span>© {new Date().getFullYear()} Diafanís</span><a href="#inicio">Voltar ao início</a></div>
       </footer>
     </div>
   );
