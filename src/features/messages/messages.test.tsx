@@ -12,6 +12,7 @@ import { ScheduleDispatchModal } from './ScheduleDispatchModal';
 import { MessagesContainer } from './MessagesContainer';
 import { MessageItem, TemplateItem, ClientRecipient, NotificationItem } from './types';
 import { allOfficeClients, availableLawsuits, availableFinancials, availableHearingDates, initialNotifications } from './mock-data';
+import * as messagesApi from './api';
 
 describe('FloatingTabNav', () => {
   it('deve renderizar as três abas principais: Notificações, Mensagens e Modelos', () => {
@@ -375,7 +376,11 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
       />
     );
 
-    // Em modo de preview por padrão, a prévia está visível
+    // Na criação de nova mensagem, avança para a Etapa 3 (Conteúdo) do Wizard
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Em modo de preview por padrão na etapa de conteúdo, a prévia está visível
     expect(screen.getByTestId('message-preview-container')).toBeInTheDocument();
     // E os botões de inserção de pills NÃO devem estar visíveis
     expect(screen.queryByTestId('pill-cliente-nome')).not.toBeInTheDocument();
@@ -391,6 +396,10 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
         onSave={() => {}}
       />
     );
+
+    // Avança para a Etapa 3 (Conteúdo)
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
 
     // Clica para alternar para a aba "Escrever"
     fireEvent.click(screen.getByTestId('tab-write-btn'));
@@ -416,6 +425,10 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
         onSave={() => {}}
       />
     );
+
+    // Avança para a Etapa 3 (Conteúdo)
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
 
     // Ícones no modal
     const lawsuitBtn = screen.getByTestId('ref-btn-lawsuit');
@@ -473,6 +486,10 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
       />
     );
 
+    // Avança para a Etapa 3 (Conteúdo)
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
     // Vai para Escrever
     fireEvent.click(screen.getByTestId('tab-write-btn'));
     const clientNamePill = screen.getByTestId('pill-cliente-nome');
@@ -502,6 +519,10 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
       />
     );
 
+    // Avança para a Etapa 3 (Conteúdo)
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
     // Abre seletor de processo
     const lawsuitBtn = screen.getByTestId('ref-btn-lawsuit');
     fireEvent.click(lawsuitBtn);
@@ -526,6 +547,10 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
         onSave={() => {}}
       />
     );
+
+    // Avança para a Etapa 3 (Conteúdo)
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
 
     // Abre seletor de data
     const dateBtn = screen.getByTestId('ref-btn-date');
@@ -590,6 +615,173 @@ describe('MessageModal & Sistema de Pills Dinâmicas', () => {
         selectedLawsuit: null,
       })
     );
+  });
+});
+
+describe('MessageModal Wizard (Criação de Nova Mensagem em 4 Etapas com Destinatários e Agendamento)', () => {
+  it('deve chamar listarClientesMensagens da API ao abrir o modal', () => {
+    const spy = vi.spyOn(messagesApi, 'listarClientesMensagens');
+    render(
+      <MessageModal
+        isOpen={true}
+        mode="create"
+        type="message"
+        onClose={() => {}}
+        onSave={() => {}}
+      />
+    );
+
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('deve gerenciar destinatários no Passo 1 (adicionar cliente do escritório, pesquisar e remover)', () => {
+    render(
+      <MessageModal
+        isOpen={true}
+        mode="create"
+        type="message"
+        onClose={() => {}}
+        onSave={() => {}}
+      />
+    );
+
+    // Passo 1 inicial ativo
+    expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
+    // Por padrão já possui o primeiro cliente
+    expect(screen.getByTestId(`msg-client-${allOfficeClients[0].id}`)).toBeInTheDocument();
+
+    // Abre modo de adição de cliente
+    fireEvent.click(screen.getByTestId('add-client-mode-btn'));
+
+    // Adiciona Beatriz Vasconcelos
+    const addBtnBeatriz = screen.getByTestId(`add-client-${allOfficeClients[1].id}`);
+    expect(addBtnBeatriz).toBeInTheDocument();
+    fireEvent.click(addBtnBeatriz);
+
+    // Agora Beatriz está nos destinatários selecionados
+    expect(screen.getByTestId(`msg-client-${allOfficeClients[1].id}`)).toBeInTheDocument();
+
+    // Remove Roberto A. D. Silva
+    fireEvent.click(screen.getByTestId(`remove-client-${allOfficeClients[0].id}`));
+    expect(screen.queryByTestId(`msg-client-${allOfficeClients[0].id}`)).not.toBeInTheDocument();
+    expect(screen.getByTestId(`msg-client-${allOfficeClients[1].id}`)).toBeInTheDocument();
+  });
+
+  it('deve percorrer as 4 etapas com agendamento global e disparar onSave com mensagem configurada', () => {
+    const handleSave = vi.fn();
+    render(
+      <MessageModal
+        isOpen={true}
+        mode="create"
+        type="message"
+        onClose={() => {}}
+        onSave={handleSave}
+      />
+    );
+
+    // Etapa 1: Destinatários
+    expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 2: Agendamento
+    expect(screen.getByTestId('wizard-step-scheduling')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('quick-tomorrow-09'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 3: Conteúdo
+    expect(screen.getByTestId('wizard-step-content')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/título da mensagem/i), {
+      target: { value: 'Aviso Geral de Teste' },
+    });
+    fireEvent.click(screen.getByTestId('tab-write-btn'));
+    fireEvent.change(screen.getByLabelText(/corpo do texto/i), {
+      target: { value: 'Prezado(a) @cliente.nome, este é um aviso geral.' },
+    });
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 4: Prévia
+    expect(screen.getByTestId('wizard-step-preview')).toBeInTheDocument();
+    expect(screen.getByText('Aviso Geral de Teste')).toBeInTheDocument();
+    expect(screen.getByText(/1 cliente/i)).toBeInTheDocument();
+
+    // Confirmar criação
+    fireEvent.click(screen.getByTestId('confirm-create-message-btn'));
+
+    expect(handleSave).toHaveBeenCalledTimes(1);
+    expect(handleSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Aviso Geral de Teste',
+        content: 'Prezado(a) @cliente.nome, este é um aviso geral.',
+        clients: [allOfficeClients[0]],
+      })
+    );
+  });
+
+  it('deve permitir agendamento individual e criar mensagens separadas formatando o título com o nome de cada cliente', () => {
+    const handleSave = vi.fn();
+    render(
+      <MessageModal
+        isOpen={true}
+        mode="create"
+        type="message"
+        onClose={() => {}}
+        onSave={handleSave}
+      />
+    );
+
+    // Etapa 1: Adicionar segundo cliente
+    fireEvent.click(screen.getByTestId('add-client-mode-btn'));
+    fireEvent.click(screen.getByTestId(`add-client-${allOfficeClients[1].id}`));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 2: Agendamento individual
+    expect(screen.getByTestId('wizard-step-scheduling')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('sched-scope-indiv-btn'));
+    fireEvent.click(screen.getByTestId('btn-set-all-birthday'));
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 3: Conteúdo
+    expect(screen.getByTestId('wizard-step-content')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/título da mensagem/i), {
+      target: { value: 'Felicitações' },
+    });
+    fireEvent.click(screen.getByTestId('tab-write-btn'));
+    fireEvent.change(screen.getByLabelText(/corpo do texto/i), {
+      target: { value: 'Parabéns pelo seu dia!' },
+    });
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    // Etapa 4: Confirmar
+    expect(screen.getByTestId('wizard-step-preview')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('confirm-create-message-btn'));
+
+    expect(handleSave).toHaveBeenCalledTimes(1);
+    const savedPayload = handleSave.mock.calls[0][0];
+    expect(Array.isArray(savedPayload)).toBe(true);
+    expect(savedPayload).toHaveLength(2);
+    expect(savedPayload[0].title).toContain('Felicitações - Roberto');
+    expect(savedPayload[1].title).toContain('Felicitações - Mariana');
+  });
+
+  it('deve permitir voltar entre as etapas do Wizard usando o botão Voltar', () => {
+    render(
+      <MessageModal
+        isOpen={true}
+        mode="create"
+        type="message"
+        onClose={() => {}}
+        onSave={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('wizard-next-btn'));
+
+    expect(screen.getByTestId('wizard-step-scheduling')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('wizard-back-btn'));
+
+    expect(screen.getByTestId('wizard-step-recipients')).toBeInTheDocument();
   });
 });
 

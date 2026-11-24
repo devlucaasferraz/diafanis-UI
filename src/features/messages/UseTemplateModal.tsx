@@ -37,6 +37,7 @@ import {
   availableFinancials,
   availableHearingDates,
 } from './mock-data';
+import { listarClientesMensagens } from './api';
 import { getNextBirthdayDate } from './ScheduleDispatchModal';
 import { renderContentWithPills } from './MessageModal';
 
@@ -80,6 +81,7 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
   const [messageTitle, setMessageTitle] = React.useState('');
 
   // Etapa 1: Destinatários
+  const [officeClients, setOfficeClients] = React.useState<ClientRecipient[]>(allOfficeClients);
   const [selectedClients, setSelectedClients] = React.useState<ClientRecipient[]>([]);
   const [clientSearchTerm, setClientSearchTerm] = React.useState('');
   const [isAddingClient, setIsAddingClient] = React.useState(false);
@@ -144,6 +146,25 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
     }
   }, [template, isOpen]);
 
+  // Carrega clientes da API ao abrir UseTemplateModal
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    listarClientesMensagens()
+      .then((clients) => {
+        if (!isMounted || !clients || clients.length === 0) return;
+        setOfficeClients(clients);
+      })
+      .catch((err) => {
+        console.warn('Falha ao listar clientes em UseTemplateModal:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !template) return null;
 
   // Verifica quais objetos de referência foram marcados (boolean) no modal de edição do modelo
@@ -159,7 +180,7 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
       c.name.toLowerCase().includes(clientSearchTerm.toLowerCase())
   );
 
-  const availableToAdd = allOfficeClients.filter(
+  const availableToAdd = officeClients.filter(
     (c) =>
       !selectedClients.some((sc) => sc.id === c.id) &&
       (c.fullName.toLowerCase().includes(addSearchTerm.toLowerCase()) ||

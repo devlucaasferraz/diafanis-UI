@@ -4,6 +4,7 @@ import { Button } from '@/features/ui/button';
 import { Avatar, AvatarFallback } from '@/features/ui/avatar';
 import { ClientRecipient } from './types';
 import { allOfficeClients } from './mock-data';
+import { listarClientesMensagens } from './api';
 
 export interface ClientRecipientsModalProps {
   isOpen: boolean;
@@ -22,9 +23,25 @@ export const ClientRecipientsModal: React.FC<ClientRecipientsModalProps> = ({
   onRemoveClient,
   onAddClient,
 }) => {
+  const [officeClients, setOfficeClients] = React.useState<ClientRecipient[]>(allOfficeClients);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isAddingMode, setIsAddingMode] = React.useState(false);
   const [addSearchTerm, setAddSearchTerm] = React.useState('');
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    listarClientesMensagens()
+      .then((res) => {
+        if (isMounted && res && res.length > 0) setOfficeClients(res);
+      })
+      .catch((err) => console.warn('Falha ao listar clientes em ClientRecipientsModal:', err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -36,7 +53,7 @@ export const ClientRecipientsModal: React.FC<ClientRecipientsModalProps> = ({
   );
 
   // Clientes do escritório disponíveis para adicionar (que ainda não estão vinculados)
-  const availableToAdd = allOfficeClients.filter(
+  const availableToAdd = officeClients.filter(
     (c) =>
       !clients.some((linked) => linked.id === c.id) &&
       (c.name.toLowerCase().includes(addSearchTerm.toLowerCase()) ||

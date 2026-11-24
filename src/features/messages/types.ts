@@ -118,3 +118,92 @@ export interface NotificationItem {
   isRead: boolean;
   createdAt: string;
 }
+
+// ============================================================================
+// CONTRATOS DE DTO / RESPOSTAS DA API (SNAKE_CASE & BACKEND)
+// ============================================================================
+
+export interface NotificationAPIResponse {
+  id: string | number;
+  titulo?: string;
+  texto?: string;
+  receptor?: string;
+  processo?: string;
+  advogado_assinante?: string;
+  prazo?: string;
+  lida?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MessageAPIResponse {
+  id: string | number;
+  titulo?: string;
+  texto?: string;
+  urgente?: boolean;
+  data_disparo?: string | null;
+  enviado?: string | null;
+  remetente?: string;
+  destinatario?: string | ClientRecipient;
+  modelo?: string | null;
+  fatura?: string | FinancialOption | null;
+  documento?: string | LawsuitOption | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TemplateAPIResponse {
+  id: string | number;
+  titulo?: string;
+  texto?: string;
+  criador?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ClienteAPIResponse {
+  id: string | number;
+  nome: string;
+  cpf?: string;
+  telefone_whatsapp?: string;
+  data_nascimento?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type NotificationPayload = Partial<NotificationItem>;
+export type MessagePayload = Partial<MessageItem>;
+export type TemplatePayload = Partial<TemplateItem>;
+
+// Payloads específicos enviados diretamente para a API Django em `mensagens`
+export interface ModeloMensagemAPIPayload {
+  titulo: string;
+  texto: string;
+  criador: string; // UUID do usuário autenticado
+}
+
+export interface MensagemAPIPayload {
+  titulo: string;
+  texto: string;
+  remetente: string; // UUID do usuário remetente
+  destinatario: string; // UUID do cliente
+  data_disparo?: string; // ISO string
+  modelo?: string | null; // UUID do ModeloMensagem
+  fatura?: string | null; // UUID da Fatura
+  documento?: string | null; // UUID do Documento
+}
+
+export interface DestinatarioDataPayload {
+  destinatario: string; // UUID do Cliente
+  data_disparo: string; // ISO string (ex: '2026-11-01T14:00:00Z')
+}
+
+export interface UsarModeloAPIPayload {
+  modelo: string; // UUID do ModeloMensagem
+  titulo?: string;
+  remetente: string; // UUID do usuário
+  fatura?: string | null; // UUID da Fatura
+  documento?: string | null; // UUID do Documento
+  dest_e_data: DestinatarioDataPayload[];
+}
+

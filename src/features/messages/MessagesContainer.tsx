@@ -10,6 +10,8 @@ import {
   ArrowUpDown,
   Send,
   Trash2,
+  RefreshCw,
+  X,
 } from 'lucide-react';
 import { GlassPanel } from '@/features/ui/glass-panel';
 import { Button } from '@/features/ui/button';
@@ -22,6 +24,21 @@ import { SendConfirmationModal } from './SendConfirmationModal';
 import { ScheduleDispatchModal } from './ScheduleDispatchModal';
 import { MessagePreviewModal } from './MessagePreviewModal';
 import { UseTemplateModal } from './UseTemplateModal';
+import {
+  listarNotificacoes,
+  listarMensagens,
+  listarModelos,
+  alternarLeituraNotificacao,
+  marcarTodasNotificacoesLidas,
+  criarMensagem,
+  atualizarMensagem,
+  deletarMensagem,
+  alternarUrgenciaMensagem,
+  enviarMensagem,
+  executarAcaoEmMassaMensagens,
+  criarModelo,
+  atualizarModelo,
+} from './api';
 import { initialMessages, initialTemplates, initialNotifications } from './mock-data';
 import {
   MessageItem,
@@ -44,10 +61,39 @@ export const MessagesContainer: React.FC = () => {
     return 'messages';
   });
 
-  // Listas de notificações, mensagens e modelos
+  // Listas de notificações, mensagens e modelos (inicializadas com mock para render instantâneo e robustez de testes)
   const [notifications, setNotifications] = React.useState<NotificationItem[]>(initialNotifications);
   const [messages, setMessages] = React.useState<MessageItem[]>(initialMessages);
   const [templates, setTemplates] = React.useState<TemplateItem[]>(initialTemplates);
+
+  // Estados de carregamento e erro de API (idêntico ao padrão de financial)
+  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [apiError, setApiError] = React.useState<string | null>(null);
+
+  // Carregamento dos dados via API com tratamento de erro
+  const loadData = React.useCallback(async () => {
+    setApiError(null);
+    try {
+      const [fetchedNotifications, fetchedMessages, fetchedTemplates] = await Promise.all([
+        listarNotificacoes(),
+        listarMensagens(),
+        listarModelos(),
+      ]);
+      setNotifications(fetchedNotifications);
+      setMessages(fetchedMessages);
+      setTemplates(fetchedTemplates);
+    } catch (err) {
+      setApiError(
+        err instanceof Error ? err.message : 'Não foi possível carregar os dados de mensagens e notificações da API.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Estados de busca, ordenação e seleção em massa de mensagens
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -105,14 +151,25 @@ export const MessagesContainer: React.FC = () => {
   }, [notifications, searchTerm]);
 
   // Ações de notificações
-  const handleToggleNotificationRead = (item: NotificationItem) => {
+  const handleToggleNotificationRead = async (item: NotificationItem) => {
+    const nextRead = !item.isRead;
     setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, isRead: !n.isRead } : n))
+      prev.map((n) => (n.id === item.id ? { ...n, isRead: nextRead } : n))
     );
+    try {
+      await alternarLeituraNotificacao(item.id, nextRead);
+    } catch {
+      // Mantém estado otimista
+    }
   };
 
-  const handleMarkAllNotificationsRead = () => {
+  const handleMarkAllNotificationsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await marcarTodasNotificacoesLidas();
+    } catch {
+      // Mantém estado otimista
+    }
   };
 
   // Filtragem e Ordenação de Mensagens (inclui título, conteúdo, cliente e objetos de vínculo)
@@ -264,27 +321,42 @@ export const MessagesContainer: React.FC = () => {
     setSendModalItem(message);
   };
 
-  const handleConfirmSend = (message: MessageItem) => {
+  const handleConfirmSend = async (message: MessageItem) => {
     // Ao enviar, remove o alerta de urgência daquela mensagem (marcada como tratada)
     setMessages((prev) =>
       prev.map((m) => (m.id === message.id ? { ...m, hasAlert: false } : m))
     );
+    try {
+      await enviarMensagem(message.id);
+    } catch {
+      // Ignora erro
+    }
   };
 
   // Ações de exclusão e urgência individual (no modal de prévia/view)
-  const handleDeleteMessage = (message: MessageItem) => {
+  const handleDeleteMessage = async (message: MessageItem) => {
     setMessages((prev) => prev.filter((m) => m.id !== message.id));
     setSelectedMessageIds((prev) => prev.filter((id) => id !== message.id));
     setPreviewMessage(null);
+    try {
+      await deletarMensagem(message.id);
+    } catch {
+      // Ignora erro
+    }
   };
 
-  const handleToggleMessageUrgency = (message: MessageItem, hasAlert: boolean) => {
+  const handleToggleMessageUrgency = async (message: MessageItem, hasAlert: boolean) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === message.id ? { ...m, hasAlert } : m))
     );
     setPreviewMessage((prev) =>
       prev && prev.id === message.id ? { ...prev, hasAlert } : prev
     );
+    try {
+      await alternarUrgenciaMensagem(message.id, hasAlert);
+    } catch {
+      // Ignora erro
+    }
   };
 
   // Ações de seleção em massa no grid de mensagens
@@ -304,7 +376,7 @@ export const MessagesContainer: React.FC = () => {
     setSelectedMessageIds([]);
   };
 
-  const handleBulkToggleUrgency = () => {
+  const handleBulkToggleUrgency = async () => {
     if (selectedMessageIds.length === 0) return;
     const allSelectedUrgent = messages
       .filter((m) => selectedMessageIds.includes(m.id))
@@ -316,22 +388,39 @@ export const MessagesContainer: React.FC = () => {
         selectedMessageIds.includes(m.id) ? { ...m, hasAlert: nextUrgency } : m
       )
     );
+    try {
+      await executarAcaoEmMassaMensagens(selectedMessageIds, 'urgencia', nextUrgency);
+    } catch {
+      // Ignora erro
+    }
   };
 
-  const handleBulkSend = () => {
+  const handleBulkSend = async () => {
     if (selectedMessageIds.length === 0) return;
+    const idsToSend = [...selectedMessageIds];
     setMessages((prev) =>
       prev.map((m) =>
-        selectedMessageIds.includes(m.id) ? { ...m, hasAlert: false } : m
+        idsToSend.includes(m.id) ? { ...m, hasAlert: false } : m
       )
     );
     setSelectedMessageIds([]);
+    try {
+      await executarAcaoEmMassaMensagens(idsToSend, 'enviar');
+    } catch {
+      // Ignora erro
+    }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedMessageIds.length === 0) return;
-    setMessages((prev) => prev.filter((m) => !selectedMessageIds.includes(m.id)));
+    const idsToDelete = [...selectedMessageIds];
+    setMessages((prev) => prev.filter((m) => !idsToDelete.includes(m.id)));
     setSelectedMessageIds([]);
+    try {
+      await executarAcaoEmMassaMensagens(idsToDelete, 'excluir');
+    } catch {
+      // Ignora erro
+    }
   };
 
   // Ações de agendamento (Data e Hora)
@@ -392,47 +481,53 @@ export const MessagesContainer: React.FC = () => {
   };
 
   // Salvar criação ou edição
-  const handleSaveModal = (data: Partial<MessageItem | TemplateItem>) => {
+  const handleSaveModal = async (data: Partial<MessageItem | TemplateItem> | Partial<MessageItem>[]) => {
     if (activeTab === 'messages') {
       if (modalMode === 'create') {
-        const newMessage: MessageItem = {
-          id: `msg-${Date.now()}`,
-          title: data.title || 'Nova Mensagem',
-          content: data.content || '',
-          category: data.category || 'general',
-          clients: [],
-          selectedLawsuit: data.selectedLawsuit || null,
-          selectedFinancial: data.selectedFinancial || null,
-          selectedDate: data.selectedDate || null,
-          hasAlert: Boolean((data as Partial<MessageItem>).hasAlert),
-          createdAt: new Date().toISOString(),
-        };
-        setMessages((prev) => [newMessage, ...prev]);
-      } else if (selectedItem) {
+        const items = Array.isArray(data) ? data : [data as Partial<MessageItem>];
+        const baseTime = Date.now();
+        const newMessages: MessageItem[] = await Promise.all(
+          items.map(async (item, idx) => {
+            const msgItem = item as Partial<MessageItem>;
+            const payload: Partial<MessageItem> = {
+              title: msgItem.title || 'Nova Mensagem',
+              content: msgItem.content || '',
+              category: msgItem.category || 'general',
+              clients: msgItem.clients || [],
+              scheduleConfig: msgItem.scheduleConfig,
+              scheduledAt: msgItem.scheduledAt || null,
+              selectedLawsuit: msgItem.selectedLawsuit || null,
+              selectedFinancial: msgItem.selectedFinancial || null,
+              selectedDate: msgItem.selectedDate || null,
+              hasAlert: Boolean(msgItem.hasAlert),
+            };
+            try {
+              return await criarMensagem(payload);
+            } catch {
+              return {
+                id: `msg-${baseTime}-${idx}`,
+                createdAt: new Date().toISOString(),
+                ...payload,
+              } as MessageItem;
+            }
+          })
+        );
+        setMessages((prev) => [...newMessages, ...prev]);
+      } else if (selectedItem && !Array.isArray(data)) {
+        const updated = await atualizarMensagem(selectedItem.id, data as Partial<MessageItem>);
         setMessages((prev) =>
-          prev.map((m) => (m.id === selectedItem.id ? ({ ...m, ...data } as MessageItem) : m))
+          prev.map((m) => (m.id === selectedItem.id ? { ...m, ...updated } : m))
         );
       }
     } else if (activeTab === 'templates') {
-      const tmplData = data as Partial<TemplateItem>;
+      const tmplData = (Array.isArray(data) ? data[0] : data) as Partial<TemplateItem>;
       if (modalMode === 'create') {
-        const newTemplate: TemplateItem = {
-          id: `tmpl-${Date.now()}`,
-          title: tmplData.title || 'Novo Modelo',
-          content: tmplData.content || '',
-          clients: [],
-          requiresLawsuit: Boolean(tmplData.requiresLawsuit),
-          requiresFinancial: Boolean(tmplData.requiresFinancial),
-          requiresDate: Boolean(tmplData.requiresDate),
-          selectedLawsuit: null,
-          selectedFinancial: null,
-          selectedDate: null,
-          updatedAt: new Date().toISOString(),
-        };
+        const newTemplate = await criarModelo(tmplData);
         setTemplates((prev) => [newTemplate, ...prev]);
       } else if (selectedItem) {
+        const updated = await atualizarModelo(selectedItem.id, tmplData);
         setTemplates((prev) =>
-          prev.map((t) => (t.id === selectedItem.id ? ({ ...t, ...tmplData } as TemplateItem) : t))
+          prev.map((t) => (t.id === selectedItem.id ? { ...t, ...updated } : t))
         );
       }
     }
@@ -451,7 +546,44 @@ export const MessagesContainer: React.FC = () => {
 
       {/* Conteúdo Principal de cada Aba */}
       <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6 lg:px-8 space-y-6">
-        {/* Painel da Aba: Notificações */}
+        {/* Banner de Erro da API */}
+        {apiError && (
+          <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{apiError}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadData}
+                className="h-7 text-xs gap-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Tentar novamente</span>
+              </Button>
+              <button
+                type="button"
+                onClick={() => setApiError(null)}
+                className="p-1 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"
+                aria-label="Fechar erro"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Indicador de Carregamento */}
+        {isLoading ? (
+          <GlassPanel className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+            <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-xs">Carregando dados da central de comunicações...</p>
+          </GlassPanel>
+        ) : (
+          <>
+            {/* Painel da Aba: Notificações */}
         {activeTab === 'notifications' && (
           <section
             id="tabpanel-notifications"
@@ -768,6 +900,8 @@ export const MessagesContainer: React.FC = () => {
               )}
             </div>
           </section>
+        )}
+        </>
         )}
       </div>
 
