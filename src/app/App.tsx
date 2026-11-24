@@ -1,6 +1,7 @@
 import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { Route as rootRoute } from '@/routes/__root';
 import { Route as indexRoute } from '@/routes/index';
+import { Route as dashboardRoute } from '@/routes/dashboard';
 import { Route as calendarRoute } from '@/routes/calendar';
 import { Route as deadlinesRoute } from '@/routes/deadlines';
 import { Route as triageRoute } from '@/routes/triage';
@@ -10,6 +11,7 @@ import { FeatureInProgress } from '@/features/ui/feature-in-progress';
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  dashboardRoute,
   calendarRoute,
   deadlinesRoute,
   triageRoute,

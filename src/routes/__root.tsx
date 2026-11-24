@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createRootRoute, Outlet } from '@tanstack/react-router';
+import { createRootRoute, Outlet, useRouterState } from '@tanstack/react-router';
 import { FeatureInProgress } from '@/features/ui/feature-in-progress';
 import { AppSidebar } from '@/layout/AppSidebar';
 import { AppHeader } from '@/layout/AppHeader';
@@ -38,6 +38,8 @@ function RootContent() {
 }
 
 function RootComponent() {
+  const pathname = useRouterState({ select: state => state.location.pathname });
+  if (pathname === '/') return <Outlet />;
   return (
     <SidebarProvider>
       <RootContent />
