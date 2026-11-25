@@ -23,7 +23,7 @@
 }
 .brand-button:hover,
 .diafanis-landing .brand-button:hover,
-.auth-page .brand-button:hover { background:#fff; border-color:#fff; color:#171c18; }
+.auth-page .brand-button:hover { background:#fff; border-color:#fff; color:#171c18; box-shadow:none; }
 .brand-button:focus-visible,
 .diafanis-landing .brand-button:focus-visible,
 .auth-page .brand-button:focus-visible { outline:2px solid #fff; outline-offset:4px; }
@@ -35,6 +35,11 @@
 .brand-button[data-shape="rectangular"] { --brand-button-radius:10px; }
 
 .brand-button[data-surface="glass"] {
-  --brand-button-background:rgba(255,255,255,.025);
-  --brand-button-backdrop:blur(10px);
+  --brand-button-background:rgba(255,255,255,.055);
+  --brand-button-backdrop:blur(12px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+}
+
+.brand-button[data-surface="transparent"] {
+  --brand-button-background:transparent;
 }

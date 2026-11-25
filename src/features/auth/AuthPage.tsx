@@ -1,3 +1,4 @@
+import { BrandMark } from '@/features/ui/brand-mark';
 import { useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, Mail } from 'lucide-react';
@@ -61,7 +62,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     </AuthResult> : done ? <AuthResult title="Tudo pronto." headingRef={heading}>
       <BrandButton shape="rectangular" asChild fullWidth className="auth-primary"><Link to="/login">Ir para o login</Link></BrandButton>
     </AuthResult> : isAccess && !emailStep ? <div className="auth-welcome">
-      <span className="auth-brand-prism auth-welcome-mark" aria-hidden="true" />
+      <BrandMark className="auth-brand-prism auth-welcome-mark" />
       <h1>{mode === 'login' ? 'Boas-vindas ao Diafanís.' : 'Crie sua conta no Diafanís.'}</h1>
       <div className="auth-methods">
         <SocialLogin onSelect={selectProvider} />

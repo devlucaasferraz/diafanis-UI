@@ -7,7 +7,7 @@ export interface BrandButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   asChild?: boolean;
   fullWidth?: boolean;
   shape?: 'pill' | 'rectangular';
-  surface?: 'solid' | 'glass';
+  surface?: 'solid' | 'glass' | 'transparent';
 }
 
 export const BrandButton = forwardRef<HTMLButtonElement, BrandButtonProps>(
