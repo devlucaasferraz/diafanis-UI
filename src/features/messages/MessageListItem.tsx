@@ -8,6 +8,9 @@ import { MessageItem, TemplateItem } from './types';
 export interface MessageListItemProps {
   item: MessageItem | TemplateItem;
   isMessage?: boolean;
+  isSelected?: boolean;
+  hasAnySelected?: boolean;
+  onToggleSelect?: (item: MessageItem) => void;
   onSelect: (item: MessageItem | TemplateItem) => void;
   onUseTemplate?: (item: TemplateItem) => void;
   onEdit?: (item: MessageItem | TemplateItem) => void;
@@ -21,6 +24,9 @@ export interface MessageListItemProps {
 export const MessageListItem: React.FC<MessageListItemProps> = ({
   item,
   isMessage = false,
+  isSelected = false,
+  hasAnySelected = false,
+  onToggleSelect,
   onSelect,
   onUseTemplate,
   onEdit,
@@ -29,6 +35,16 @@ export const MessageListItem: React.FC<MessageListItemProps> = ({
 }) => {
   const messageItem = isMessage ? (item as MessageItem) : null;
   const hasAlert = Boolean(messageItem?.hasAlert);
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleCheckboxChange = () => {
+    if (onToggleSelect && messageItem) {
+      onToggleSelect(messageItem);
+    }
+  };
 
   const handleSendClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -61,12 +77,35 @@ export const MessageListItem: React.FC<MessageListItemProps> = ({
       onClick={() => onSelect(item)}
       className={cn(
         'group cursor-pointer p-4 transition-all duration-200 hover:border-primary/40 hover:shadow-md hover:bg-card/90 active:scale-[0.995]',
+        isSelected && 'border-primary/60 bg-primary/5',
         className
       )}
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* A ESQUERDA: Bolinha de Alerta (só em mensagens) e Título da Mensagem */}
+        {/* A ESQUERDA: Caixa de Seleção (hover ou quando alguma selecionada), Bolinha de Alerta e Título */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
+          {isMessage && onToggleSelect && (
+            <div
+              data-testid={`select-checkbox-wrapper-${item.id}`}
+              onClick={handleCheckboxClick}
+              className={cn(
+                'flex items-center justify-center shrink-0 transition-all duration-150',
+                hasAnySelected || isSelected
+                  ? 'opacity-100 w-4'
+                  : 'opacity-0 w-0 overflow-hidden group-hover:opacity-100 group-hover:w-4'
+              )}
+            >
+              <input
+                type="checkbox"
+                data-testid={`select-message-${item.id}`}
+                aria-label={`Selecionar ${item.title}`}
+                checked={isSelected}
+                onChange={handleCheckboxChange}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+              />
+            </div>
+          )}
+
           {isMessage && hasAlert && (
             <span
               data-testid="message-alert-dot"

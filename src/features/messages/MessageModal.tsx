@@ -18,7 +18,6 @@ import { cn } from '@/shared/cn';
 import {
   MessageItem,
   TemplateItem,
-  MessageCategory,
   LawsuitOption,
   FinancialOption,
   HearingDateOption,
@@ -37,14 +36,6 @@ export interface MessageModalProps {
   onClose: () => void;
   onSave: (data: Partial<MessageItem | TemplateItem>) => void;
 }
-
-const CATEGORY_OPTIONS: { value: MessageCategory; label: string }[] = [
-  { value: 'birthday', label: 'Aniversário' },
-  { value: 'hearing', label: 'Audiência' },
-  { value: 'financial', label: 'Financeiro' },
-  { value: 'update', label: 'Andamento Processual' },
-  { value: 'general', label: 'Geral' },
-];
 
 /**
  * Renderiza o texto substituindo tags de menção (@...) por componentes visuais de pills azuis
@@ -83,10 +74,14 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 }) => {
   const [title, setTitle] = React.useState('');
   const [content, setContent] = React.useState('');
-  const [category, setCategory] = React.useState<MessageCategory>('general');
   const [hasAlert, setHasAlert] = React.useState(false);
 
-  // Objetos de referência selecionados (um, e somente um, para cada ícone)
+  // Nos modelos (template): booleans indicando se o objeto de referência deve ser exigido ao usar o modelo
+  const [requiresLawsuit, setRequiresLawsuit] = React.useState(false);
+  const [requiresFinancial, setRequiresFinancial] = React.useState(false);
+  const [requiresDate, setRequiresDate] = React.useState(false);
+
+  // Nas mensagens concretas (message): objetos de referência reais selecionados
   const [selectedLawsuit, setSelectedLawsuit] = React.useState<LawsuitOption | null>(null);
   const [selectedFinancial, setSelectedFinancial] = React.useState<FinancialOption | null>(null);
   const [selectedDate, setSelectedDate] = React.useState<HearingDateOption | null>(null);
@@ -184,18 +179,25 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     if (initialData) {
       setTitle(initialData.title || '');
       setContent(initialData.content || '');
-      setCategory(initialData.category || 'general');
       setSelectedLawsuit(initialData.selectedLawsuit || null);
       setSelectedFinancial(initialData.selectedFinancial || null);
       setSelectedDate(initialData.selectedDate || null);
+
+      const tmplData = initialData as TemplateItem;
+      setRequiresLawsuit(Boolean(tmplData.requiresLawsuit ?? initialData.selectedLawsuit));
+      setRequiresFinancial(Boolean(tmplData.requiresFinancial ?? initialData.selectedFinancial));
+      setRequiresDate(Boolean(tmplData.requiresDate ?? initialData.selectedDate));
+
       if ('hasAlert' in initialData) {
         setHasAlert(Boolean(initialData.hasAlert));
       }
     } else {
       setTitle('');
       setContent('');
-      setCategory('general');
       setHasAlert(false);
+      setRequiresLawsuit(false);
+      setRequiresFinancial(false);
+      setRequiresDate(false);
       setSelectedLawsuit(null);
       setSelectedFinancial(null);
       setSelectedDate(null);
@@ -238,24 +240,41 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     }
   };
 
+  const isMessage = type === 'message';
+  const hasFinancialActive = isMessage ? Boolean(selectedFinancial) : requiresFinancial;
+  const hasLawsuitActive = isMessage ? Boolean(selectedLawsuit) : requiresLawsuit;
+  const hasDateActive = isMessage ? Boolean(selectedDate) : requiresDate;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    onSave({
-      ...(initialData || {}),
-      title: title.trim(),
-      content: content.trim(),
-      category,
-      selectedLawsuit,
-      selectedFinancial,
-      selectedDate,
-      ...(type === 'message' ? { hasAlert } : {}),
-    });
+    if (isMessage) {
+      onSave({
+        ...(initialData || {}),
+        title: title.trim(),
+        content: content.trim(),
+        selectedLawsuit,
+        selectedFinancial,
+        selectedDate,
+        hasAlert,
+      });
+    } else {
+      onSave({
+        ...(initialData || {}),
+        title: title.trim(),
+        content: content.trim(),
+        requiresLawsuit,
+        requiresFinancial,
+        requiresDate,
+        selectedLawsuit: null,
+        selectedFinancial: null,
+        selectedDate: null,
+      });
+    }
     onClose();
   };
 
-  const isMessage = type === 'message';
   const modalTitle =
     mode === 'create'
       ? isMessage
@@ -314,66 +333,26 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             />
           </div>
 
-          {/* Categoria & Status de Urgência */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label htmlFor="message-category" className="text-xs font-semibold text-foreground">
-                Categoria
-              </label>
-              <select
-                id="message-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value as MessageCategory)}
-                className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                {CATEGORY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Toggle de Alerta de Urgência (apenas para mensagens) */}
-            {isMessage && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground block">
-                  Status de Urgência
-                </label>
-                <label className="flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={hasAlert}
-                    onChange={(e) => setHasAlert(e.target.checked)}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  <div className="flex items-center gap-1.5 text-xs text-foreground">
-                    <span className="h-2 w-2 rounded-full bg-rose-600 inline-block" />
-                    <span>Exibir bolinha vermelha de alerta</span>
-                  </div>
-                </label>
-              </div>
-            )}
-          </div>
-
-          {/* SEÇÃO: Ícones de Objetos de Referência (com cores Cinza vs Azul e seleção única) */}
+          {/* SEÇÃO: Ícones de Objetos de Referência (Boolean em Modelos / Seleção Real em Mensagens) */}
           <div className="space-y-2.5 p-3.5 rounded-xl border border-border/60 bg-muted/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-foreground">
-                  Objetos de Referência Vinculados:
+                  {isMessage ? 'Objetos de Referência Vinculados:' : 'Objetos de Referência Exigidos:'}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  (clique no ícone para vincular 1 item)
+                  {isMessage
+                    ? '(clique no ícone para vincular 1 item)'
+                    : '(marque para exigir a referência ao usar o modelo)'}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> Não selecionado (cinza)
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> Não aplicado (cinza)
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-blue-500" /> Selecionado (azul)
+                  <span className="h-2 w-2 rounded-full bg-blue-500" /> Aplicado (azul)
                 </span>
               </div>
             </div>
@@ -388,28 +367,43 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 <button
                   type="button"
                   data-testid="ref-btn-financial"
-                  onClick={() => handleToggleSelector('financial')}
+                  aria-pressed={hasFinancialActive}
+                  onClick={() => {
+                    if (isMessage) {
+                      handleToggleSelector('financial');
+                    } else {
+                      setRequiresFinancial((prev) => !prev);
+                    }
+                  }}
                   className={cn(
                     'flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shadow-xs',
-                    selectedFinancial
+                    hasFinancialActive
                       ? 'bg-blue-500/10 text-blue-600 border-blue-500/40 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-700/60'
                       : 'bg-muted/40 text-muted-foreground/50 border-border/40 hover:text-foreground hover:bg-muted/60'
                   )}
                   title={
-                    selectedFinancial
-                      ? `Financeiro: ${selectedFinancial.code} (${selectedFinancial.amount})`
-                      : 'Nenhuma fatura selecionada (clique para escolher)'
+                    isMessage
+                      ? selectedFinancial
+                        ? `Financeiro: ${selectedFinancial.code} (${selectedFinancial.amount})`
+                        : 'Nenhuma fatura selecionada (clique para escolher)'
+                      : requiresFinancial
+                        ? 'Financeiro exigido neste modelo (clique para desativar)'
+                        : 'Financeiro não exigido (clique para ativar)'
                   }
                 >
                   <DollarSign className="h-4 w-4" />
                   <span>
-                    {selectedFinancial ? selectedFinancial.code : 'Financeiro'}
+                    {isMessage && selectedFinancial ? selectedFinancial.code : 'Financeiro'}
                   </span>
-                  <ChevronDown className="h-3 w-3 opacity-60" />
+                  {isMessage ? (
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  ) : (
+                    hasFinancialActive && <Check className="h-3.5 w-3.5" />
+                  )}
                 </button>
 
-                {/* Dropdown / Seletor de Financeiro */}
-                {openSelector === 'financial' && (
+                {/* Dropdown / Seletor de Financeiro (apenas em Mensagens) */}
+                {isMessage && openSelector === 'financial' && (
                   <div
                     data-testid="selector-popover-financial"
                     className="absolute left-0 top-full mt-1.5 z-20 w-72 rounded-xl border border-border/80 bg-popover shadow-xl animate-in fade-in-50 zoom-in-95 overflow-hidden"
@@ -486,28 +480,43 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 <button
                   type="button"
                   data-testid="ref-btn-lawsuit"
-                  onClick={() => handleToggleSelector('lawsuit')}
+                  aria-pressed={hasLawsuitActive}
+                  onClick={() => {
+                    if (isMessage) {
+                      handleToggleSelector('lawsuit');
+                    } else {
+                      setRequiresLawsuit((prev) => !prev);
+                    }
+                  }}
                   className={cn(
                     'flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shadow-xs',
-                    selectedLawsuit
+                    hasLawsuitActive
                       ? 'bg-blue-500/10 text-blue-600 border-blue-500/40 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-700/60'
                       : 'bg-muted/40 text-muted-foreground/50 border-border/40 hover:text-foreground hover:bg-muted/60'
                   )}
                   title={
-                    selectedLawsuit
-                      ? `Processo: ${selectedLawsuit.number}`
-                      : 'Nenhum processo selecionado (clique para escolher)'
+                    isMessage
+                      ? selectedLawsuit
+                        ? `Processo: ${selectedLawsuit.number}`
+                        : 'Nenhum processo selecionado (clique para escolher)'
+                      : requiresLawsuit
+                        ? 'Processo exigido neste modelo (clique para desativar)'
+                        : 'Processo não exigido (clique para ativar)'
                   }
                 >
                   <Scale className="h-4 w-4" />
                   <span className="truncate max-w-[130px]">
-                    {selectedLawsuit ? selectedLawsuit.court : 'Processo'}
+                    {isMessage && selectedLawsuit ? selectedLawsuit.court : 'Processo'}
                   </span>
-                  <ChevronDown className="h-3 w-3 opacity-60" />
+                  {isMessage ? (
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  ) : (
+                    hasLawsuitActive && <Check className="h-3.5 w-3.5" />
+                  )}
                 </button>
 
-                {/* Dropdown / Seletor de Processo */}
-                {openSelector === 'lawsuit' && (
+                {/* Dropdown / Seletor de Processo (apenas em Mensagens) */}
+                {isMessage && openSelector === 'lawsuit' && (
                   <div
                     data-testid="selector-popover-lawsuit"
                     className="absolute left-0 top-full mt-1.5 z-20 w-80 rounded-xl border border-border/80 bg-popover shadow-xl animate-in fade-in-50 zoom-in-95 overflow-hidden"
@@ -584,28 +593,43 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 <button
                   type="button"
                   data-testid="ref-btn-date"
-                  onClick={() => handleToggleSelector('date')}
+                  aria-pressed={hasDateActive}
+                  onClick={() => {
+                    if (isMessage) {
+                      handleToggleSelector('date');
+                    } else {
+                      setRequiresDate((prev) => !prev);
+                    }
+                  }}
                   className={cn(
                     'flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shadow-xs',
-                    selectedDate
+                    hasDateActive
                       ? 'bg-blue-500/10 text-blue-600 border-blue-500/40 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-700/60'
                       : 'bg-muted/40 text-muted-foreground/50 border-border/40 hover:text-foreground hover:bg-muted/60'
                   )}
                   title={
-                    selectedDate
-                      ? `Data: ${selectedDate.date} às ${selectedDate.time}`
-                      : 'Nenhuma data selecionada (clique para escolher)'
+                    isMessage
+                      ? selectedDate
+                        ? `Data: ${selectedDate.date} às ${selectedDate.time}`
+                        : 'Nenhuma data selecionada (clique para escolher)'
+                      : requiresDate
+                        ? 'Data / Prazo exigido neste modelo (clique para desativar)'
+                        : 'Data / Prazo não exigido (clique para ativar)'
                   }
                 >
                   <Calendar className="h-4 w-4" />
                   <span>
-                    {selectedDate ? `${selectedDate.date} ${selectedDate.time}` : 'Data / Prazo'}
+                    {isMessage && selectedDate ? `${selectedDate.date} ${selectedDate.time}` : 'Data / Prazo'}
                   </span>
-                  <ChevronDown className="h-3 w-3 opacity-60" />
+                  {isMessage ? (
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  ) : (
+                    hasDateActive && <Check className="h-3.5 w-3.5" />
+                  )}
                 </button>
 
-                {/* Dropdown / Seletor de Data */}
-                {openSelector === 'date' && (
+                {/* Dropdown / Seletor de Data (apenas em Mensagens) */}
+                {isMessage && openSelector === 'date' && (
                   <div
                     data-testid="selector-popover-date"
                     className="absolute left-0 top-full mt-1.5 z-20 w-72 rounded-xl border border-border/80 bg-popover shadow-xl animate-in fade-in-50 zoom-in-95 overflow-hidden"
@@ -755,16 +779,16 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 </div>
               </div>
 
-              {/* Pills do Tipo 2: Condicionais aos Objetos Adicionados */}
-              {(selectedLawsuit || selectedFinancial || selectedDate) ? (
+              {/* Pills do Tipo 2: Condicionais aos Objetos Adicionados/Exigidos */}
+              {(hasLawsuitActive || hasFinancialActive || hasDateActive) ? (
                 <div className="pt-2 border-t border-border/30 space-y-2">
                   <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Pills dos Objetos Vinculados:
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">
-                    {/* Pills do Processo (só aparecem se tiver processo selecionado) */}
-                    {selectedLawsuit && (
+                    {/* Pills do Processo (só aparecem se processo estiver ativo) */}
+                    {hasLawsuitActive && (
                       <>
                         <button
                           type="button"
@@ -796,8 +820,8 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                       </>
                     )}
 
-                    {/* Pills de Financeiro (só aparecem se tiver financeiro selecionado) */}
-                    {selectedFinancial && (
+                    {/* Pills de Financeiro (só aparecem se financeiro estiver ativo) */}
+                    {hasFinancialActive && (
                       <>
                         <button
                           type="button"
@@ -829,8 +853,8 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                       </>
                     )}
 
-                    {/* Pills de Data/Prazo (só aparecem se tiver data selecionada) */}
-                    {selectedDate && (
+                    {/* Pills de Data/Prazo (só aparecem se data estiver ativa) */}
+                    {hasDateActive && (
                       <>
                         <button
                           type="button"

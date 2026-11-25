@@ -75,7 +75,7 @@ export interface MessageItem {
   id: string;
   title: string;
   content: string;
-  category: MessageCategory;
+  category?: MessageCategory;
   references?: ReferenceCounts;
   hasAlert?: boolean; // Bolinha de alerta vermelha (exclusiva para mensagens)
   clients: ClientRecipient[]; // Clientes vinculados à mensagem
@@ -92,9 +92,12 @@ export interface TemplateItem {
   id: string;
   title: string;
   content: string;
-  category: MessageCategory;
+  category?: MessageCategory;
   references?: ReferenceCounts;
   clients?: ClientRecipient[];
+  requiresLawsuit?: boolean;
+  requiresFinancial?: boolean;
+  requiresDate?: boolean;
   selectedLawsuit?: LawsuitOption | null;
   selectedFinancial?: FinancialOption | null;
   selectedDate?: HearingDateOption | null;
@@ -104,8 +107,6 @@ export interface TemplateItem {
   updatedAt?: string;
 }
 
-export type NotificationPriority = 'fatal' | 'in_progress' | 'hearing';
-
 export interface NotificationItem {
   id: string;
   title: string;
@@ -113,7 +114,7 @@ export interface NotificationItem {
   processNumber?: string;
   assignedLawyer: string;
   deadline: string;
-  priority: NotificationPriority;
+  isFatal?: boolean;
   isRead: boolean;
   createdAt: string;
 }

@@ -23,7 +23,7 @@ interface MobileNavDrawerProps {
 }
 
 const navItems = [
-  { label: 'Dashboard', to: '/', icon: LayoutDashboard },
+  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Calendário', to: '/calendar', icon: Calendar, badge: 2 },
   { label: 'Motor de Prazos', to: '/deadlines', icon: Timer },
   { label: 'Central de Documentos', to: '/triage', icon: FolderClosed },
