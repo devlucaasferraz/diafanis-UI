@@ -157,7 +157,10 @@ export const MessagesContainer: React.FC = () => {
       prev.map((n) => (n.id === item.id ? { ...n, isRead: nextRead } : n))
     );
     try {
-      await alternarLeituraNotificacao(item.id, nextRead);
+      const updated = await alternarLeituraNotificacao(item.id, nextRead);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === updated.id ? { ...n, isRead: updated.isRead } : n))
+      );
     } catch {
       // Mantém estado otimista
     }
@@ -353,9 +356,15 @@ export const MessagesContainer: React.FC = () => {
       prev && prev.id === message.id ? { ...prev, hasAlert } : prev
     );
     try {
-      await alternarUrgenciaMensagem(message.id, hasAlert);
+      const updated = await alternarUrgenciaMensagem(message.id, hasAlert);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === updated.id ? { ...m, hasAlert: updated.hasAlert } : m))
+      );
+      setPreviewMessage((prev) =>
+        prev && prev.id === updated.id ? { ...prev, hasAlert: updated.hasAlert } : prev
+      );
     } catch {
-      // Ignora erro
+      // Mantém estado otimista
     }
   };
 

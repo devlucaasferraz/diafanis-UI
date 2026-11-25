@@ -21,7 +21,6 @@ import {
   TemplateAPIResponse,
 } from './types';
 import {
-  initialNotifications,
   initialMessages,
   initialTemplates,
   allOfficeClients,
@@ -37,11 +36,14 @@ import {
 } from './utils';
 
 // ============================================================================
-// CONFIGURAÇÃO BASE DE URL E REQUISIÇÃO (idêntica ao padrão de financial)
+// CONFIGURAÇÃO BASE DE URL, USUÁRIO E VALIDAÇÕES
 // ============================================================================
 
-// const DEFAULT_API_URL = 'https://diafanis-api-239560742520.southamerica-east1.run.app';
 const DEFAULT_API_URL = 'http://localhost:8080';
+const DEFAULT_USER_ID = '51a03fca-9084-4a12-ad90-2c5faa89040e';
+
+/** Limite máximo de caracteres para o campo `titulo` na API Django (max_length=50). */
+export const MAX_TITLE_LENGTH = 50;
 
 export function getApiBaseUrl(): string {
   const envUrl = import.meta.env?.VITE_API_URL;
@@ -50,29 +52,30 @@ export function getApiBaseUrl(): string {
 }
 
 /**
+ * Retorna o UUID do usuário atual utilizado como `rcp`, `remetente` ou `criador`
+ * enquanto a autenticação não estiver integrada ao contexto da aplicação.
+ */
+export function getCurrentUserId(): string {
+  const envUserId = import.meta.env?.VITE_DEFAULT_USER_ID;
+  return typeof envUserId === 'string' && envUserId.trim().length > 0
+    ? envUserId.trim()
+    : DEFAULT_USER_ID;
+}
+
+/**
+ * Normaliza o título respeitando o limite máximo aceito pela API (50 caracteres).
+ */
+export function normalizeTitle(title: string | undefined, fallback = ''): string {
+  const cleaned = (title ?? '').trim() || fallback;
+  return cleaned.slice(0, MAX_TITLE_LENGTH);
+}
+
+/**
  * Função utilitária para requisições com suporte a proxy relativo (Vercel/Vite)
  * para evitar erros de CORS no navegador e apontar para a nuvem quando necessário.
  */
 export async function fetchWithFallback(path: string, options?: RequestInit): Promise<Response> {
   const baseUrl = getApiBaseUrl();
-
-  const isBrowserWithProxy =
-    typeof window !== 'undefined' &&
-    (window.location.hostname.includes('vercel.app') ||
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1');
-
-  if (isBrowserWithProxy) {
-    try {
-      const proxyRes = await fetch(path, options);
-      if (proxyRes.status !== 404) {
-        return proxyRes;
-      }
-    } catch {
-      // Falha no proxy relativo, continua para URL base completa
-    }
-  }
-
   return await fetch(`${baseUrl}${path}`, options);
 }
 
@@ -116,13 +119,15 @@ export async function parseErrorMessage(response: Response): Promise<string> {
  *  - Em caso de erro, faça fallback para `initialNotifications` ou dispare erro formatado com `parseErrorMessage`.
  */
 export async function listarNotificacoes(): Promise<NotificationItem[]> {
-  // TODO: Implemente a requisição 1 aqui
-  // Enquanto você implementa, mantemos o retorno simulado com fallback:
-  const response = await fetchWithFallback('/api/notificacoes/', { method: 'GET', headers: { Accept: 'application/json' } });
+  const userId = encodeURIComponent(getCurrentUserId());
+  const response = await fetchWithFallback(`/api/notificacoes/?rcp=${userId}`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
 
-  if(response.ok){
+  if (response.ok) {
     const data: NotificationAPIResponse[] = await response.json();
-    return data.map(mapNotificationFromAPI)
+    return data.map(mapNotificationFromAPI);
   }
   return [];
 }
@@ -130,44 +135,44 @@ export async function listarNotificacoes(): Promise<NotificationItem[]> {
 /**
  * [REQUISIÇÃO 2] Alternar Status de Leitura da Notificação (Marcar/Desmarcar como Lida)
  * Método: PATCH
- * Endpoint: /api/notificacoes/:id/
- * Body: { is_read: boolean } ou { lida: boolean }
- * Retorno: Promise<NotificationItem>
+ * Endpoint: /api/notificacoes/:id/alternar-lida/
+ * Retorno: Promise<{ id: string; isRead: boolean }>
  */
-export async function alternarLeituraNotificacao(id: string, isRead: boolean): Promise<NotificationItem> {
-  // TODO: Implemente a requisição 2 aqui
-  let item = initialNotifications.find((n) => n.id === id);
+export async function alternarLeituraNotificacao(
+  id: string,
+  _isRead?: boolean
+): Promise<{ id: string; isRead: boolean }> {
+  const response = await fetchWithFallback(`/api/notificacoes/${id}/alternar-lida/`, {
+    method: 'PATCH',
+    headers: { Accept: 'application/json' },
+  });
 
-  const response = await fetchWithFallback(
-    `/api/notificacoes/${id}/alternar-lida/`,
-    { method: 'PATCH', headers: { Accept: 'application/json' } }
-  )
-  
-  if(response.ok){
-    const data = await response.json()
-    isRead = data.lida || false
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
   }
 
-  return item ? { ...item, isRead } : ({} as NotificationItem);
+  const data: { id: string | number; lida: boolean } = await response.json();
+  return {
+    id: String(data.id),
+    isRead: Boolean(data.lida),
+  };
 }
 
 /**
  * [REQUISIÇÃO 3] Marcar Todas as Notificações como Lidas
- * Método: POST ou PATCH
- * Endpoint: /api/notificacoes/marcar-todas-lidas/
+ * Método: PATCH
+ * Endpoint: /api/notificacoes/marcar-todas-lidas/?rcp=<uuid>
  * Retorno: Promise<void>
  */
 export async function marcarTodasNotificacoesLidas(): Promise<void> {
+  const userId = encodeURIComponent(getCurrentUserId());
   const response = await fetchWithFallback(
-    `/api/notificacoes/marcar-todas-lidas/`,
+    `/api/notificacoes/marcar-todas-lidas/?rcp=${userId}`,
     { method: 'PATCH', headers: { Accept: 'application/json' } }
-  )
-  
-  if(response.ok){
-    const data = await response.json()
-    console.log(`quantidade atualizada: ${data.n_marcadas || 0}`)
-  }else{
-    console.error("Não foi possível marcar todas as notificações como lidas.")
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
   }
 }
 
@@ -205,15 +210,6 @@ export async function listarMensagens(): Promise<MessageItem[]> {
  */
 export async function criarMensagem(payload: MessagePayload): Promise<MessageItem> {
   // TODO: Implemente a requisição 5 aqui
-  const response = await fetchWithFallback(
-    `/api/mensagens/`,
-    { method: 'POST', headers: { Accept: 'application/json' }, body: JSON.stringify(payload) }
-  )
-
-  if(response.ok){
-    const data = await response.json()
-    return mapMessageFromAPI(data)
-  }
   return {
     id: `msg-${Date.now()}`,
     title: payload.title || 'Nova Mensagem',
@@ -244,22 +240,48 @@ export async function atualizarMensagem(id: string, payload: Partial<MessagePayl
 /**
  * [REQUISIÇÃO 7] Alternar Status de Urgência da Mensagem
  * Método: PATCH
- * Endpoint: /api/mensagens/:id/urgencia/ (ou /api/mensagens/:id/ com { has_alert: boolean })
- * Body: { hasAlert: boolean }
- * Retorno: Promise<void> ou Promise<MessageItem>
+ * Endpoint: /api/mensagens/:id/alternar-urgencia/
+ * Retorno: Promise<{ id: string; hasAlert: boolean }>
  */
-export async function alternarUrgenciaMensagem(_id: string, _hasAlert: boolean): Promise<void> {
-  // TODO: Implemente a requisição 7 aqui
+export async function alternarUrgenciaMensagem(
+  id: string,
+  hasAlert?: boolean
+): Promise<{ id: string; hasAlert: boolean }> {
+  const hasExplicitValue = typeof hasAlert === 'boolean';
+  const response = await fetchWithFallback(`/api/mensagens/${id}/alternar-urgencia/`, {
+    method: 'PATCH',
+    headers: hasExplicitValue
+      ? { 'Content-Type': 'application/json', Accept: 'application/json' }
+      : { Accept: 'application/json' },
+    ...(hasExplicitValue ? { body: JSON.stringify({ urgente: hasAlert }) } : {}),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  const data: { id: string | number; urgente: boolean } = await response.json();
+  return {
+    id: String(data.id),
+    hasAlert: Boolean(data.urgente),
+  };
 }
 
 /**
- * [REQUISIÇÃO 8] Enviar / Disparar Mensagem
+ * [REQUISIÇÃO 8] Enviar / Disparar Mensagem (fluxo simulado na API)
  * Método: POST
  * Endpoint: /api/mensagens/:id/enviar/
  * Retorno: Promise<void>
  */
-export async function enviarMensagem(_id: string): Promise<void> {
-  // TODO: Implemente a requisição 8 aqui
+export async function enviarMensagem(id: string): Promise<void> {
+  const response = await fetchWithFallback(`/api/mensagens/${id}/enviar/`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
 }
 
 /**
@@ -268,23 +290,42 @@ export async function enviarMensagem(_id: string): Promise<void> {
  * Endpoint: /api/mensagens/:id/
  * Retorno: Promise<void>
  */
-export async function deletarMensagem(_id: string): Promise<void> {
-  // TODO: Implemente a requisição 9 aqui
+export async function deletarMensagem(id: string): Promise<void> {
+  const response = await fetchWithFallback(`/api/mensagens/${id}/`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok && response.status !== 204) {
+    throw new Error(await parseErrorMessage(response));
+  }
 }
 
 /**
  * [REQUISIÇÃO 10] Ações em Massa no Grid de Mensagens (Urgência, Enviar ou Excluir)
- * Método: POST
- * Endpoint: /api/mensagens/bulk/
- * Body: { ids: string[]; acao: 'urgencia' | 'enviar' | 'excluir'; hasAlert?: boolean }
+ * Executa as requisições individuais em paralelo via Promise.all.
  * Retorno: Promise<void>
  */
 export async function executarAcaoEmMassaMensagens(
-  _ids: string[],
-  _acao: 'urgencia' | 'enviar' | 'excluir',
-  _hasAlert?: boolean
+  ids: string[],
+  acao: 'urgencia' | 'enviar' | 'excluir',
+  hasAlert?: boolean
 ): Promise<void> {
-  // TODO: Implemente a requisição 10 aqui
+  if (ids.length === 0) return;
+
+  if (acao === 'urgencia') {
+    await Promise.all(ids.map((id) => alternarUrgenciaMensagem(id, hasAlert)));
+    return;
+  }
+
+  if (acao === 'enviar') {
+    await Promise.all(ids.map((id) => enviarMensagem(id)));
+    return;
+  }
+
+  if (acao === 'excluir') {
+    await Promise.all(ids.map((id) => deletarMensagem(id)));
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -294,7 +335,7 @@ export async function executarAcaoEmMassaMensagens(
 /**
  * [REQUISIÇÃO 11] Listar Modelos de Disparo
  * Método: GET
- * Endpoint: /api/modelos/
+ * Endpoint: /api/mensagens/modelos/
  * Retorno: Promise<TemplateItem[]>
  */
 export async function listarModelos(): Promise<TemplateItem[]> {
@@ -315,7 +356,7 @@ export async function listarModelos(): Promise<TemplateItem[]> {
 /**
  * [REQUISIÇÃO 12] Criar Novo Modelo
  * Método: POST
- * Endpoint: /api/modelos/
+ * Endpoint: /api/mensagens/modelos/
  * Body: TemplatePayload
  * Retorno: Promise<TemplateItem>
  */
@@ -336,7 +377,7 @@ export async function criarModelo(payload: TemplatePayload): Promise<TemplateIte
 /**
  * [REQUISIÇÃO 13] Atualizar Modelo Existente
  * Método: PUT ou PATCH
- * Endpoint: /api/modelos/:id/
+ * Endpoint: /api/mensagens/modelos/:id/
  * Body: Partial<TemplatePayload>
  * Retorno: Promise<TemplateItem>
  */

@@ -37,7 +37,7 @@ import {
   availableFinancials,
   availableHearingDates,
 } from './mock-data';
-import { listarClientesMensagens } from './api';
+import { listarClientesMensagens, MAX_TITLE_LENGTH } from './api';
 import { getNextBirthdayDate } from './ScheduleDispatchModal';
 import { renderContentWithPills } from './MessageModal';
 
@@ -1054,16 +1054,22 @@ export const UseTemplateModal: React.FC<UseTemplateModalProps> = ({
 
               {/* Campo de Título da Mensagem (preenchido com o título do modelo) */}
               <div className="space-y-1.5">
-                <label
-                  htmlFor="use-template-title-input"
-                  className="text-xs font-semibold text-foreground block"
-                >
-                  Título da Mensagem
-                </label>
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="use-template-title-input"
+                    className="text-xs font-semibold text-foreground block"
+                  >
+                    Título da Mensagem
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    {messageTitle.length}/{MAX_TITLE_LENGTH}
+                  </span>
+                </div>
                 <input
                   id="use-template-title-input"
                   data-testid="use-template-title-input"
                   type="text"
+                  maxLength={MAX_TITLE_LENGTH}
                   value={messageTitle}
                   onChange={(e) => setMessageTitle(e.target.value)}
                   placeholder="Digite o título da mensagem..."

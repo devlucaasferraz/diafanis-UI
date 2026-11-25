@@ -40,7 +40,7 @@ import {
   availableFinancials,
   availableHearingDates,
 } from './mock-data';
-import { listarClientesMensagens } from './api';
+import { listarClientesMensagens, MAX_TITLE_LENGTH } from './api';
 import { getNextBirthdayDate } from './ScheduleDispatchModal';
 import { formatClientShortName } from './UseTemplateModal';
 
@@ -1023,13 +1023,19 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <div data-testid="wizard-step-content" className="space-y-5">
               {/* Título */}
               <div className="space-y-1.5">
-                <label htmlFor="message-title" className="text-xs font-semibold text-foreground">
-                  Título da {isMessage ? 'Mensagem' : 'Template'} *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="message-title" className="text-xs font-semibold text-foreground">
+                    Título da {isMessage ? 'Mensagem' : 'Template'} *
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    {title.length}/{MAX_TITLE_LENGTH}
+                  </span>
+                </div>
                 <input
                   id="message-title"
                   type="text"
                   required
+                  maxLength={MAX_TITLE_LENGTH}
                   placeholder="Ex: Aviso de Audiência de Instrução ou Felicitação de Aniversário"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
