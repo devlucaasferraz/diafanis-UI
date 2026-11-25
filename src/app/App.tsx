@@ -7,10 +7,15 @@ import { Route as deadlinesRoute } from '@/routes/deadlines';
 import { Route as triageRoute } from '@/routes/triage';
 import { Route as messagesRoute } from '@/routes/messages';
 import { Route as financialRoute } from '@/routes/financial';
+import { loginRoute, signupRoute, recoveryRoute, resetRoute } from '@/routes/auth';
 import { FeatureInProgress } from '@/features/ui/feature-in-progress';
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  loginRoute,
+  signupRoute,
+  recoveryRoute,
+  resetRoute,
   dashboardRoute,
   calendarRoute,
   deadlinesRoute,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Menu, X } from 'lucide-react';
 import { IoArrowForwardOutline } from 'react-icons/io5';
+import { BrandButton } from '@/features/ui/brand-button';
 import { PrismField } from './PrismField';
 import { FeaturePreviews } from './FeaturePreviews';
 import { LandingContact } from './LandingContact';
@@ -53,7 +54,7 @@ export function LandingPage() {
         <nav className="landing-desktop-nav" aria-label="Navegação principal">{nav.map(item => <a href={`#${item.id}`} key={item.id}>{item.name}</a>)}</nav>
         <div className="landing-header-actions">
           <a href="/login" className="landing-enter">Entrar</a>
-          <a href="/cadastro" className="landing-signup">Criar conta <ArrowUpRight size={18} aria-hidden="true" /></a>
+          <BrandButton asChild className="landing-signup"><a href="/cadastro">Criar conta <ArrowUpRight size={18} aria-hidden="true" /></a></BrandButton>
           <button ref={menuToggle} type="button" className="landing-menu-toggle" aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'} aria-expanded={menuOpen} aria-controls="landing-navigation" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
         </div>
       </header>
@@ -61,7 +62,7 @@ export function LandingPage() {
         {nav.map(item => <a href={`#${item.id}`} key={item.id} onClick={() => setMenuOpen(false)}>{item.name}</a>)}
         <div className="landing-menu-access">
           <a href="/login" onClick={() => setMenuOpen(false)}>Entrar</a>
-          <a href="/cadastro" className="landing-signup" onClick={() => setMenuOpen(false)}>Criar conta <ArrowUpRight size={18} aria-hidden="true" /></a>
+          <BrandButton asChild className="landing-signup"><a href="/cadastro" onClick={() => setMenuOpen(false)}>Criar conta <ArrowUpRight size={18} aria-hidden="true" /></a></BrandButton>
         </div>
       </nav>}
       <main>
@@ -75,7 +76,7 @@ export function LandingPage() {
         <section id="experimentar" className="landing-access landing-section" aria-labelledby="access-heading">
           <div className="lp-trial-content" data-reveal>
             <h2 id="access-heading">Experimente o Diafanís.</h2>
-            <a href="/cadastro" className="lp-trial-primary">Começar meu teste <IoArrowForwardOutline size={20} aria-hidden="true" focusable="false" /></a>
+            <BrandButton asChild className="lp-trial-primary"><a href="/cadastro">Começar meu teste <IoArrowForwardOutline size={20} aria-hidden="true" focusable="false" /></a></BrandButton>
           </div>
         </section>
         <LandingContact paused={paused} />

@@ -10,3 +10,5 @@ export * from './brand-logo';
 export * from './feature-in-progress';
 export * from './construction-vector';
 export * from './legal-construction-animation';
+
+export * from './brand-button';
