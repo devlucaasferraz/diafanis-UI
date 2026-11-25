@@ -39,7 +39,7 @@ function RootContent() {
 
 function RootComponent() {
   const pathname = useRouterState({ select: state => state.location.pathname });
-  if (pathname === '/') return <Outlet />;
+  if (['/', '/sobre-nos', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha'].includes(pathname)) return <Outlet />;
   return (
     <SidebarProvider>
       <RootContent />
