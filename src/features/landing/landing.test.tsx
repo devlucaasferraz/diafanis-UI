@@ -254,7 +254,7 @@ describe('Contato demonstrativo', () => {
     await user.click(screen.getByRole('button', { name: 'Enviar mensagem' }));
     const region = screen.getByRole('region', { name: 'Prévia da mensagem' });
     expect(within(region).getByText('Ana Costa')).toBeInTheDocument();
-    expect(within(region).getByText('Rascunho local, sem envio.')).toBeInTheDocument();
+    expect(within(region).getByText('Mensagem pronta para copiar.')).toBeInTheDocument();
     await user.click(within(region).getByRole('button', { name: 'Copiar texto' }));
     expect(await navigator.clipboard.readText()).toContain('Quero conhecer o sistema para meu escritório.');
     await user.click(within(region).getByRole('button', { name: 'Fechar prévia da mensagem' }));
