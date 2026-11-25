@@ -215,8 +215,8 @@
 .lp-number-flow span:nth-child(2) { top:54%; transform:rotate(-12deg); border-color:#accfee20; animation-delay:-3s; }
 .lp-number-flow span:nth-child(3) { top:62%; height:25%; transform:rotate(-8deg); border-color:#accfee17; animation-delay:-6s; }
 .lp-number-supporting { padding-top:5px; }
-.lp-number-row { display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:22px; min-height:126px; border-bottom:1px solid #ffffff24; }
-.lp-number-row:first-child { border-top:1px solid #ffffff24; }
+.lp-number-row { display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:22px; min-height:126px; }
+.lp-number-row + .lp-number-row { border-top:1px solid #ffffff24; }
 .lp-number-row h3 { font-size:16px; font-weight:400; color:#9caabc; line-height:1.6; }
 .lp-number-row .lp-number-value { font-size:clamp(34px,3.7vw,53px); }
 .lp-numbers-disclaimer { margin-top:28px!important; font-size:16px; color:#7d8795; }

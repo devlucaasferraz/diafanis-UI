@@ -59,6 +59,5 @@ export function ResultsSection({ paused = false }: { paused?: boolean }) {
         </div>)}
       </div>
     </div>
-    <p className="lp-numbers-disclaimer">Valores ilustrativos para o protótipo. Não representam resultados reais.</p>
   </section>;
 }
