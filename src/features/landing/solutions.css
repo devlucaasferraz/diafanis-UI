@@ -5,10 +5,11 @@
 .diafanis-landing .solutions-selector button:hover,.diafanis-landing .solutions-selector button[aria-pressed=true] { color:#f4f4f4; }
 .solutions-selector button>span { position:absolute; height:2px; left:0; right:0; bottom:0; background:#d3d3d3; transform:scaleX(0); transform-origin:left; transition:transform .35s; }
 .solutions-selector button[aria-pressed=true]>span { transform:scaleX(1); }
+.solutions-presentation { container-type:inline-size; }
 .solutions-copy { padding:42px 0 32px; animation:demo-copy-in .5s both; }
 .solutions-copy h3 { font-size:clamp(28px,3cqw,42px); font-weight:400; line-height:1.2; letter-spacing:-.04em; }
 .solutions-copy p { margin-top:14px!important; color:#a6a6a6; font-size:16px; max-width:720px; }
-.solution-demo { position:relative; background:radial-gradient(ellipse at 10% 0%,#33333335,transparent 60%),var(--demo-surface); border:1px solid #d4d4d41a; border-radius:14px; height:520px; overflow:hidden; isolation:isolate; container-type:inline-size; box-shadow:0 24px 90px #00000055; animation:demo-interface-in .65s cubic-bezier(.16,1,.3,1) both; }
+.solution-demo { position:relative; background:radial-gradient(ellipse at 10% 0%,#33333335,transparent 60%),var(--demo-surface); border:1px solid #d4d4d41a; border-radius:14px; height:clamp(520px,50cqw,960px); overflow:hidden; isolation:isolate; container-type:inline-size; box-shadow:0 24px 90px #00000055; animation:demo-interface-in .65s cubic-bezier(.16,1,.3,1) both; }
 .demo-interface { position:relative; height:100%; color:var(--demo-text); font-size:16px; line-height:1.5; }
 .demo-interface strong { font-weight:500; }
 .demo-interface h4,.demo-interface h5 { margin:0; font-weight:400; letter-spacing:-.03em; }
@@ -27,21 +28,23 @@
 .demo-field>span { color:#a5a5a5; display:block; margin-bottom:8px; }
 .demo-field>div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px; border:1px solid #ffffff20; border-radius:6px; transition:border-color .4s,background .4s; }
 .demo-field.active>div { border-color:#c4c4c4; background:#c4c4c408; }
-.demo-agenda { display:grid; grid-template-columns:60px repeat(5,minmax(0,1fr)); height:432px; }
+.demo-agenda { display:grid; grid-template-columns:60px repeat(5,minmax(0,1fr)); height:calc(100% - 88px); }
 .demo-hours { display:grid; grid-template-rows:98px repeat(4,1fr); padding-left:14px; color:#7b7b7b; font-size:14px; }
 .demo-hours>span { padding-top:12px; }
-.demo-day { border-left:1px solid var(--demo-line); }
-.demo-day-heading { display:flex; align-items:center; justify-content:center; flex-direction:column; height:98px; gap:6px; border-bottom:1px solid var(--demo-line); }
+.demo-day { display:flex; flex-direction:column; min-height:0; border-left:1px solid var(--demo-line); }
+.demo-day-heading { display:flex; align-items:center; justify-content:center; flex-direction:column; height:98px; flex-shrink:0; gap:6px; border-bottom:1px solid var(--demo-line); }
 .demo-day-heading>span { font-size:14px; color:#9e9e9e; }
 .demo-day-heading strong { font-size:28px; font-weight:400; }
-.demo-day.today .demo-day-heading strong { color:#dadada; }
-.demo-day-body { position:relative; height:334px; background:repeating-linear-gradient(0deg,transparent,transparent 82px,#ffffff08 82px,#ffffff08 83px); }
+.demo-day.today { background:#ffffff03; }
+.demo-day.today .demo-day-heading { box-shadow:inset 0 2px #b9b9b3; }
+.demo-day.today .demo-day-heading strong { color:#f0f0eb; }
+.demo-day-body { position:relative; flex:1; min-height:0; background:linear-gradient(to bottom,transparent calc(100% - 1px),#ffffff08 0) 0 0 / 100% 25%; }
 .demo-appointment { position:absolute; inset:16px 8px auto; display:flex; flex-direction:column; gap:6px; min-height:106px; padding:13px 11px; border-radius:5px; background:#c2c2c20e; border-left:2px solid #b4b4b4; color:#c7c7c7; font-size:14px; transition:background .5s,box-shadow .5s,transform .5s; }
 .demo-appointment>span { color:#a1a1a1; }
 .demo-appointment>strong { font-size:15px; line-height:1.5; }
-.demo-appointment.hearing { top:99px; background:#a6a6a61a; border-color:#c6c6c6; }
-.demo-appointment.deadline { top:248px; min-height:70px; background:#ccaa8b10; border-color:#c5a58e; color:#d5bdab; }
-.demo-appointment.review { top:182px; }
+.demo-appointment.hearing { top:calc(25% + 16px); background:#a6a6a61a; border-color:#c6c6c6; }
+.demo-appointment.deadline { top:calc(75% + 16px); min-height:70px; background:#ccaa8b10; border-color:#c5a58e; color:#d5bdab; }
+.demo-appointment.review { top:calc(50% + 16px); }
 .demo-appointment.selected { background:#c8c8c82b; box-shadow:0 0 0 1px #d0d0d04a; transform:translateY(-2px); }
 .demo-event-popover { position:absolute; width:340px; top:115px; left:46%; background:#212121; border:1px solid #e2e2e22a; border-radius:10px; padding:24px; box-shadow:0 24px 65px #00000077; opacity:0; transform:translateY(14px) scale(.98); transition:opacity .45s,transform .6s cubic-bezier(.16,1,.3,1); pointer-events:none; }
 .demo-event-popover.open { opacity:1; transform:translateY(0) scale(1); }
@@ -110,7 +113,10 @@
   .demo-agenda { height:474px; grid-template-columns:44px repeat(2,minmax(0,1fr)); }
   .demo-hours { padding-left:6px; font-size:11px; grid-template-rows:98px repeat(4,1fr); }
   .demo-day.day-2,.demo-day.day-3,.demo-day.day-4 { display:none; }
-  .demo-day-body { height:376px; }
+  .demo-day-body { flex:none; height:376px; }
+  .demo-appointment.hearing { top:99px; }
+  .demo-appointment.review { top:182px; }
+  .demo-appointment.deadline { top:248px; }
   .demo-appointment { inset-inline:6px; padding:10px; font-size:12px; }
   .demo-appointment>strong { font-size:15px; }
   .demo-event-popover { width:calc(100% - 64px); top:126px; left:32px; padding:22px; }
@@ -182,7 +188,7 @@
 .demo-regional-result { margin-top:20px; opacity:0; transform:translateY(8px); transition:opacity .5s,transform .5s; }
 .demo-regional-result>span { display:block; color:#aaa; font-size:15px; }
 .demo-regional-result>strong { display:block; font-size:clamp(32px,3.4vw,48px); font-weight:400; letter-spacing:-.05em; margin-top:4px; }
-.demo-relationship-layout { display:grid; grid-template-columns:1fr 1.15fr; height:432px; }
+.demo-relationship-layout { display:grid; grid-template-columns:1fr 1.15fr; height:calc(100% - 88px); }
 .demo-day-suggestions { position:relative; padding:24px 0; border-right:1px solid var(--demo-line); }
 .demo-day-suggestions h5 { padding:0 28px; margin-bottom:16px; }
 .demo-suggestion { display:flex; align-items:center; gap:14px; padding:16px 28px; transition:background .4s; }
@@ -352,7 +358,7 @@
 }
 @media(prefers-reduced-motion:reduce) { .story-cursor { display:none; } .wa-draft-word { opacity:1; } }
 
-.demo-regional-layout { display:grid; grid-template-columns:.9fr 1.4fr; height:432px; }
+.demo-regional-layout { display:grid; grid-template-columns:.9fr 1.4fr; height:calc(100% - 88px); }
 .demo-regional-form { display:flex; flex-direction:column; justify-content:center; gap:24px; padding:28px; border-right:1px solid var(--demo-line); }
 .demo-court-field>label { display:block; color:#999; font-size:14px; margin-bottom:8px; }
 .demo-court-select { position:relative; z-index:4; min-width:0; }
@@ -385,7 +391,7 @@
   .demo-deadlines[data-step="5"] .demo-regional-form,.demo-deadlines[data-step="6"] .demo-regional-form { display:none; }
 }
 
-.doc-workspace { display:grid; grid-template-columns:minmax(260px,.85fr) minmax(0,1.65fr); height:432px; }
+.doc-workspace { display:grid; grid-template-columns:minmax(260px,.85fr) minmax(0,1.65fr); height:calc(100% - 88px); }
 .doc-clients { border-right:1px solid var(--demo-line); padding:24px 0; }
 .doc-clients h5 { padding:0 24px; margin-bottom:20px; font-size:21px; }
 .doc-client-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:22px 24px; transition:background .4s; }
@@ -492,3 +498,12 @@
 }
 
 .diafanis-landing .solutions-selector button:focus-visible { outline:1px solid #bdbdbd; outline-offset:-5px; border-radius:4px; }
+
+@media(min-width:1001px) {
+  .demo-finance-summary { padding-block:clamp(32px,3cqw,56px); }
+  .demo-table-row { padding-block:clamp(19px,2.2cqw,36px); }
+  .doc-overview { display:flex; flex-direction:column; }
+  .doc-recent-row { flex:1; }
+  .doc-approved-files { display:flex; flex-direction:column; height:calc(100% - 85px); }
+  .doc-approved-files .doc-file-row { flex:1; max-height:160px; }
+}
