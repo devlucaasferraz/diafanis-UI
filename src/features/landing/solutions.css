@@ -524,7 +524,8 @@
 @media(max-width:650px) { .demo-message-empty { display:none; } }
 
 .diafanis-landing .solutions-intro>h2 { max-width:760px; margin:0; text-align:left; }
-.demo-window { height:100%; border-radius:inherit; --ag-app-window-bar:#252525; --ag-app-window-ground:#131313; --ag-app-window-ink:#e5e5e7; }
+/* Keep the demo palette above AppWindow utilities regardless of CSS bundle order. */
+.diafanis-landing .demo-window { height:100%; border-radius:inherit; --ag-app-window-bar:#252525; --ag-app-window-ground:#131313; --ag-app-window-ink:#e5e5e7; }
 .demo-window>[data-slot="app-window-bar"] {  }
 .demo-window>[data-slot="app-window-body"] { min-height:0; }
 

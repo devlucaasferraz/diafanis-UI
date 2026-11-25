@@ -98,9 +98,10 @@ export function AppWindow({
         // `bg-*`, `text-*` or `shadow-*` replaces the utility whatever the scheme,
         // where a `dark:` utility would outrank it.
         "bg-[var(--ag-app-window-ground)] text-[color:var(--ag-app-window-ink)] shadow-[var(--ag-app-window-shadow)]",
-        "[--ag-app-window-bar:#f3f3f3] [--ag-app-window-ground:#ffffff] [--ag-app-window-ink:#1d1d1f] [--ag-app-window-shadow:0_0_0_0.5px_rgb(0_0_0/0.22),0_24px_60px_-16px_rgb(0_0_0/0.45)]",
-        "dark:[--ag-app-window-bar:#2b2b2d] dark:[--ag-app-window-ground:#1e1e1e] dark:[--ag-app-window-ink:#e5e5e7] dark:[--ag-app-window-shadow:0_0_0_0.5px_rgb(255_255_255/0.16),0_24px_60px_-16px_rgb(0_0_0/0.6)]",
-        scheme === "dark" ? "dark" : undefined,
+        scheme === "dark"
+          ? "[--ag-app-window-bar:#2b2b2d] [--ag-app-window-ground:#1e1e1e] [--ag-app-window-ink:#e5e5e7] [--ag-app-window-shadow:0_0_0_0.5px_rgb(255_255_255/0.16),0_24px_60px_-16px_rgb(0_0_0/0.6)]"
+          : "[--ag-app-window-bar:#f3f3f3] [--ag-app-window-ground:#ffffff] [--ag-app-window-ink:#1d1d1f] [--ag-app-window-shadow:0_0_0_0.5px_rgb(0_0_0/0.22),0_24px_60px_-16px_rgb(0_0_0/0.45)]",
+        !scheme && "dark:[--ag-app-window-bar:#2b2b2d] dark:[--ag-app-window-ground:#1e1e1e] dark:[--ag-app-window-ink:#e5e5e7] dark:[--ag-app-window-shadow:0_0_0_0.5px_rgb(255_255_255/0.16),0_24px_60px_-16px_rgb(0_0_0/0.6)]",
         className,
       )}
     >
