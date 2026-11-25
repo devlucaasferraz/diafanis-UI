@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { IoCalendarOutline, IoCalculatorOutline, IoWalletOutline, IoDocumentsOutline, IoPeopleOutline } from 'react-icons/io5';
 import { SolutionScene } from './SolutionScene';
 import { finalStoryStep, solutionChoreography, type SolutionId, type StoryPhase } from './solutionChoreography';
 import './solutions.css';
 
 const solutions = [
-  { id: 'calendar', name: 'Calendário', title: 'Espaço para o que importa.', description: 'Prazos, audiências e compromissos. Toda a sua semana em perspectiva.' },
-  { id: 'deadlines', name: 'Prazos', title: 'Nunca perca um compromisso.', description: 'Feriados e suspensões da comarca entram na conta. Você acompanha cada dia até o vencimento.' },
-  { id: 'financial', name: 'Financeiro', title: 'Sem sustos no fim do mês.', description: 'Veja o que já entrou, o que falta receber e quais honorários precisam de atenção.' },
-  { id: 'documents', name: 'Documentos', title: 'O bot organiza. Você conduz.', description: 'O bot recebe e organiza os documentos. Quando o cliente precisa, sua equipe assume pelo WhatsApp.' },
-  { id: 'messages', name: 'Gestão de clientes', title: 'Presença nos momentos que importam.', description: 'Lembretes e mensagens para cada cliente. Use um modelo ou personalize antes de enviar pelo bot.' },
+  { id: 'calendar', name: 'Calendário', icon: IoCalendarOutline, title: 'Espaço para o que importa.', description: 'Prazos, audiências e compromissos. Toda a sua semana em perspectiva.' },
+  { id: 'deadlines', name: 'Prazos', icon: IoCalculatorOutline, title: 'Nunca perca um compromisso.', description: 'Feriados e suspensões entram na conta. Calcule o vencimento e transforme o prazo em um evento do calendário.' },
+  { id: 'financial', name: 'Financeiro', icon: IoWalletOutline, title: 'Sem sustos no fim do mês.', description: 'Veja o que já entrou, o que falta receber e quais honorários precisam de atenção.' },
+  { id: 'documents', name: 'Documentos', icon: IoDocumentsOutline, title: 'O bot organiza. Você conduz.', description: 'O bot recebe e organiza os documentos. Quando o cliente precisa, sua equipe assume pelo WhatsApp.' },
+  { id: 'messages', name: 'Gestão de clientes', icon: IoPeopleOutline, title: 'Presença nos momentos que importam.', description: 'Lembretes e mensagens para cada cliente. Use um modelo ou personalize antes de enviar pelo bot.' },
 ] as const;
 
 function Demonstration({ id, paused }: { id: SolutionId; paused: boolean }) {
@@ -65,9 +66,11 @@ export function FeaturePreviews({ paused = false }: { paused?: boolean }) {
     return () => { observer.disconnect(); document.removeEventListener('visibilitychange', onVisibility); };
   }, []);
   return <section id="sistema" className="landing-section solutions" aria-labelledby="system-heading">
-    <h2 id="system-heading">Soluções para<br />o seu escritório.</h2>
-    <div className="solutions-selector" role="group" aria-label="Escolha uma solução">
-      {solutions.map(({ id, name }) => <button key={id} aria-pressed={active === id} onClick={() => { setActive(id); setReplay(value => value + 1); }}>{name}<span aria-hidden="true" /></button>)}
+    <div className="solutions-intro">
+      <h2 id="system-heading">Soluções</h2>
+      <div className="solutions-selector" role="group" aria-label="Escolha uma solução">
+        {solutions.map(({ id, name, icon: Icon }) => <button key={id} aria-pressed={active === id} onClick={() => { setActive(id); setReplay(value => value + 1); }}><Icon size={21} aria-hidden="true" focusable="false" />{name}<span aria-hidden="true" /></button>)}
+      </div>
     </div>
     <div className="solutions-presentation" ref={root}>
       <div className="solutions-copy" key={active}><h3>{selected.title}</h3><p>{selected.description}</p></div>

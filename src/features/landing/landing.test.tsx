@@ -39,7 +39,7 @@ describe('Playground de soluções', () => {
   it('reinicia a cena ao trocar de solução e permite repeti-la pelo seletor', () => {
     observe(); vi.useFakeTimers();
     const { container } = render(<FeaturePreviews />);
-    expect(screen.getByRole('heading', { name: 'Soluções para o seu escritório.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Soluções' })).toBeInTheDocument();
     advance(3);
     expect(container.querySelector('.solution-demo')).toHaveAttribute('data-step', '3');
     fireEvent.click(screen.getByRole('button', { name: 'Financeiro' }));
@@ -87,7 +87,7 @@ describe('Playground de soluções', () => {
     const { container } = render(<FeaturePreviews />);
     for (const name of ['Calendário', 'Prazos', 'Financeiro', 'Documentos', 'Gestão de clientes']) {
       fireEvent.click(screen.getByRole('button', { name }));
-      const lastStep = name === 'Gestão de clientes' ? 7 : name === 'Documentos' || name === 'Prazos' ? 6 : 5;
+      const lastStep = name === 'Gestão de clientes' ? 7 : name === 'Prazos' ? 9 : name === 'Documentos' ? 6 : 5;
       advance(lastStep);
       expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
       expect(container.querySelector('.solution-demo')).toHaveAttribute('data-step', String(lastStep));
@@ -99,21 +99,44 @@ describe('Playground de soluções', () => {
     const { container } = render(<FeaturePreviews />);
     fireEvent.click(screen.getByRole('button', { name: 'Prazos' }));
     advance(6);
-    expect(screen.getByRole('combobox', { name: 'Comarca do processo' })).toHaveValue('petrolina');
+    expect(screen.getByRole('combobox', { name: 'Calendário local' })).toHaveValue('petrolina');
     expect(screen.getByRole('option', { name: 'Juazeiro · BA' })).toBeInTheDocument();
-    expect(screen.getByText('27 nov · Suspensão de exemplo')).toBeInTheDocument();
+    expect(screen.getByText('27 nov · Suspensão')).toBeInTheDocument();
     expect(screen.getByText('02 de dezembro')).toBeInTheDocument();
     expect(container.querySelector('.local-day')).not.toHaveClass('due');
     expect(container.querySelector('.demo-local-exception')).toHaveClass('open');
+  });
+  it('revela o vencimento automaticamente e permite criar um evento com horário e descrição livre', () => {
+    observe(); vi.useFakeTimers();
+    const { container } = render(<FeaturePreviews />);
+    fireEvent.click(screen.getByRole('button', { name: 'Prazos' }));
+    advance(6);
+    expect(container.querySelector('.solution-demo')).toHaveAttribute('data-cue', '6');
+    expect(container.querySelector('.story-cursor')).not.toHaveAttribute('data-gesture', 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar ao calendário' }));
+    expect(screen.getByRole('dialog', { name: 'Novo evento' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Data')).toHaveValue('02/12/2026');
+    expect(screen.getByLabelText('Data')).toHaveAttribute('readonly');
+    fireEvent.change(screen.getByLabelText('Descrição (opcional)'), { target: { value: 'Projeto de consultoria' } });
+    fireEvent.change(screen.getByLabelText('Início'), { target: { value: '10:00' } });
+    fireEvent.change(screen.getByLabelText('Término'), { target: { value: '11:30' } });
+    fireEvent.change(screen.getByLabelText('Nome do evento'), { target: { value: 'Protocolar defesa' } });
+    act(() => vi.advanceTimersByTime(10000));
+    expect(container.querySelector('.solution-demo')).toHaveAttribute('data-step', '6');
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar evento' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Evento adicionado ao calendário');
+    expect(screen.getByRole('status')).toHaveTextContent('Protocolar defesa');
+    expect(screen.getByRole('status')).toHaveTextContent('Projeto de consultoria');
+    expect(screen.getByRole('status')).toHaveTextContent('10:00 — 11:30');
   });
   it('permite escolher outra comarca durante a demonstração', () => {
     observe(); vi.useFakeTimers();
     const { container } = render(<FeaturePreviews />);
     fireEvent.click(screen.getByRole('button', { name: 'Prazos' }));
     advance(6);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Comarca do processo' }), { target: { value: 'sobradinho' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Calendário local' }), { target: { value: 'sobradinho' } });
     const form = container.querySelector('.demo-regional-form');
-    expect(form).toContainElement(screen.getByRole('combobox', { name: 'Comarca do processo' }));
+    expect(form).toContainElement(screen.getByRole('combobox', { name: 'Calendário local' }));
     expect(screen.getAllByRole('option')).toHaveLength(10);
     expect(screen.queryByRole('option', { name: 'Recife · PE' })).not.toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Salvador · BA' })).not.toBeInTheDocument();

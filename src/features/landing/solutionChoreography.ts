@@ -19,7 +19,10 @@ export const solutionChoreography: Record<SolutionId, StoryCue[]> = {
     { target: '.demo-regional-fields .demo-field:first-child>div', gesture: 'type' },
     { target: '.demo-regional-fields .demo-field:last-child>div', gesture: 'type' },
     { target: '.demo-regional-form>.demo-action, .regional-counting', gesture: 'click' },
-    { target: '.regional-counting>div:last-child', gesture: 'inspect' },
+    { target: '.demo-regional-form>.demo-action', gesture: 'inspect' },
+    { target: '.demo-add-event', gesture: 'click' },
+    { target: '.event-dialog-title-input', gesture: 'type' },
+    { target: '.event-dialog-save', gesture: 'click' },
   ],
   financial: [
     { target: '.demo-finance-summary', gesture: 'inspect' },
