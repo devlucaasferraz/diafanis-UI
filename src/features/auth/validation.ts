@@ -5,3 +5,5 @@ const password = z.string().min(8, 'Use pelo menos 8 caracteres.').regex(/[a-zA-
 export const signupSchema = z.object({ name: z.string().trim().min(2, 'Informe seu nome.').max(100, 'Use até 100 caracteres.'), email, password, confirmPassword: z.string() }).refine(data => data.password === data.confirmPassword, { path: ['confirmPassword'], message: 'As senhas precisam ser iguais.' });
 export const recoverySchema = z.object({ email });
 export const resetSchema = z.object({ password, confirmPassword: z.string() }).refine(data => data.password === data.confirmPassword, { path: ['confirmPassword'], message: 'As senhas precisam ser iguais.' });
+
+export const pinSchema = z.object({ pin: z.string().regex(/^\d{6}$/, 'Informe os 6 dígitos do código.') });
