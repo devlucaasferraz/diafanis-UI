@@ -1,7 +1,7 @@
 import { Cliente, FaturaAPIResponse, FaturaPayload, Invoice } from './types';
 import { mapFaturaFromAPI } from './utils';
 
-const DEFAULT_API_URL = 'https://diafanis-api-239560742520.southamerica-east1.run.app';
+const DEFAULT_API_URL = 'https://api.diafanis.app.br';
 
 export function getApiBaseUrl(): string {
   const envUrl = import.meta.env?.VITE_API_URL;

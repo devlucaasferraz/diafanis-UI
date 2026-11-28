@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://diafanis-api-239560742520.southamerica-east1.run.app',
+        target: 'https://api.diafanis.app.br',
         changeOrigin: true,
         secure: true,
       },
